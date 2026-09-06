@@ -2,7 +2,7 @@
 
 This is a **simulated experiment, not a live test on real users.** Real
 Olist e-commerce data is used only to calibrate realistic simulation
-parameters — category-level order-value distributions and baseline
+parameters: category-level order-value distributions and baseline
 delivery-complaint rates. No hypothesis test anywhere in this project
 runs against real, unrandomized Olist orders; every p-value and
 confidence interval here comes from a synthetic, randomly assigned
@@ -13,8 +13,8 @@ about running an A/B test correctly, not about salvaging causal claims
 from data that was never randomized.
 
 The Olist dataset also appears in other, unrelated projects in this
-portfolio. That reuse is deliberate — it's a convenient, realistic,
-public e-commerce dataset — not an oversight, and here its role is
+portfolio. That reuse is deliberate: it's a convenient, realistic,
+public e-commerce dataset, not an oversight, and here its role is
 strictly limited to calibration.
 
 ## The point of this project
@@ -22,7 +22,7 @@ strictly limited to calibration.
 Most "A/B test" write-ups skip straight to the analysis. The actual
 discipline of experimentation is in what happens *before* you see any
 data: picking a metric, committing to a minimum effect worth acting on,
-sizing the sample, and writing down which test you'll run — all before
+sizing the sample, and writing down which test you'll run, all before
 a single row of experimental data exists. This project enforces that
 order literally, through git history, not just prose:
 
@@ -43,7 +43,7 @@ renames). Nothing in the design could have been fit to a result, because
 no result existed yet. Run `git log --oneline` for the full history: the
 commits after `70722c0` are documentation, a bug fix to the simulation's
 orders-per-seller calibration, and two repo restructurings into a standard
-`src` package layout — all made after the design was already locked, and
+`src` package layout, all made after the design was already locked, and
 none of them touch `PREREGISTRATION.md` or change any number it quotes,
 which `git show 7ba1f90:PREREGISTRATION.md` confirms.
 
@@ -113,7 +113,7 @@ This installs the `pipeline` package plus six console commands
 `shipping-randomize`, `shipping-analyze`, `shipping-report`), the
 dashboard's dependencies, and pytest. If you'd rather not install it as a
 package, `pip install -r requirements.txt` and call each module directly
-instead (`python3 -m pipeline.calibration`, etc.) — both approaches run
+instead (`python3 -m pipeline.calibration`, etc.); both approaches run
 the exact same code.
 
 ## Run in order
@@ -143,7 +143,7 @@ telling you to run the dashboard.
 
 - **Business question:** does free shipping raise average order value
   (AOV) without meaningfully increasing the delivery-complaint rate.
-- **Unit of randomization:** seller, not order — see PREREGISTRATION.md
+- **Unit of randomization:** seller, not order; see PREREGISTRATION.md
   section 2 for the SUTVA/interference argument.
 - **Primary metric / MDE:** mean per-seller AOV; MDE = R$25, grounded in
   the ~R$23 average freight cost a seller absorbs (see PREREGISTRATION.md
@@ -171,7 +171,7 @@ preregistered analysis, run once on the full sample, recovered:
 
 Both intervals contain their true injected value, and the guardrail
 correctly did not breach the 2.0-point margin. This is one seeded run,
-not proof the method generalizes to every possible effect — see
+not proof the method generalizes to every possible effect; see
 limitations below.
 
 ## Why fixed-horizon, no-peeking matters
@@ -190,7 +190,7 @@ sellers per arm (`tests/test_stopping_rule.py`).
 
 - **Recovery is necessary, not sufficient.** A single seeded run whose
   CI happens to contain the true effect is expected roughly 95% of the
-  time by construction, even for a correctly-built method — this run
+  time by construction, even for a correctly-built method; this run
   passing is a smoke test that the pipeline isn't obviously broken, not
   a proof the method generalizes to every real, unknown effect size.
 - **Seller-level randomization assumes no cross-seller interference.**

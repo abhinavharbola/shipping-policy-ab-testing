@@ -52,7 +52,7 @@ def build_memo(results):
     g_diff = guardrail["point_estimate_diff"] * 100
     margin = guardrail["non_inferiority_margin"] * 100
 
-    memo = f"""# Free Shipping Experiment: Stakeholder Memo
+    memo = rf"""# Free Shipping Experiment: Stakeholder Memo
 
 ## Recommendation: {verdict}
 
@@ -68,9 +68,9 @@ whether it made delivery complaints worse.
 ## Order value result
 
 Sellers offering free shipping had an average order value of
-R$ {primary['treatment_mean_aov']}, versus R$ {primary['control_mean_aov']} for sellers on standard
-shipping. That's a lift of **R$ {lift}** (95% confidence interval: R$ {ci_low} to
-R$ {ci_high}). This interval does not include zero, so the lift is unlikely
+R\$ {primary['treatment_mean_aov']}, versus R\$ {primary['control_mean_aov']} for sellers on standard
+shipping. That's a lift of **R\$ {lift}** (95% confidence interval: R\$ {ci_low} to
+R\$ {ci_high}). This interval does not include zero, so the lift is unlikely
 to be due to chance.
 
 ## Complaint rate check (guardrail)

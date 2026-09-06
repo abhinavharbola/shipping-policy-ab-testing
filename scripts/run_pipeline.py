@@ -2,7 +2,7 @@
 Runs the full experiment pipeline in order:
     calibrate -> power analysis -> simulate -> randomize -> analyze -> report
 
-PREREGISTRATION.md is intentionally not touched by this script — it is a
+PREREGISTRATION.md is intentionally not touched by this script; it is a
 locked document, written and committed before any of these steps
 existed, and stays that way (see README.md "build-order proof").
 
