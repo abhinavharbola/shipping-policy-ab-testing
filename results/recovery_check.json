@@ -1,0 +1,15 @@
+{
+  "true_aov_lift": 28.0,
+  "primary_ci": [
+    21.12,
+    36.91
+  ],
+  "primary_recovered": true,
+  "true_complaint_lift": 0.012,
+  "guardrail_ci": [
+    0.0127,
+    0.0193
+  ],
+  "guardrail_recovered": false,
+  "both_recovered": false
+}

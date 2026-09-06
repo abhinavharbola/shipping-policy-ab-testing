@@ -1,0 +1,31 @@
+{
+  "primary": {
+    "test": "Welch's t-test, two-sided",
+    "unit_of_analysis": "seller (mean AOV)",
+    "n_treatment_sellers": 2503,
+    "n_control_sellers": 2503,
+    "treatment_mean_aov": 173.42,
+    "control_mean_aov": 144.41,
+    "point_estimate_lift": 29.02,
+    "ci_95_low": 21.12,
+    "ci_95_high": 36.91,
+    "t_statistic": 7.2028,
+    "p_value": 6.777175087921901e-13,
+    "significant_at_alpha_0.05": true
+  },
+  "guardrail": {
+    "test": "one-sided two-proportion z-test (treatment > control), pooled order-level counts",
+    "unit_for_test": "order (documented clustering simplification, see PREREGISTRATION.md section 8)",
+    "n_treatment_orders": 81239,
+    "n_control_orders": 81469,
+    "treatment_complaint_rate": 0.1446,
+    "control_complaint_rate": 0.1286,
+    "point_estimate_diff": 0.016,
+    "ci_95_low": 0.0127,
+    "ci_95_high": 0.0193,
+    "z_statistic": 9.3953,
+    "p_value_one_sided": 2.852102988660847e-21,
+    "non_inferiority_margin": 0.02,
+    "guardrail_breached": false
+  }
+}
