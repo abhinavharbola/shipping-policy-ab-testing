@@ -1,23 +1,21 @@
 """
 Step 8: Streamlit dashboard.
 
-Built on top of Streamlit's native theme (.streamlit/config.toml) rather
-than overriding component internals with hand-rolled CSS. The header
-bar, tabs, metric deltas, and success/error banners all pick up the
-theme automatically this way, and stay consistent across Streamlit
-versions instead of breaking when internal class names change.
+Built on Streamlit's native theme (.streamlit/config.toml) so built-in
+components (header, tabs, metric deltas, alert banners, expanders)
+follow the theme automatically. Custom CSS here is limited to
+typography: a display font for the masthead, monospace for small data
+tags (chart annotations, metric labels/deltas), and justified body
+text.
 
-Layout: verdict banner and headline metrics are visible immediately, no
-tab click required. The build-order proof is real but secondary
-information, so it lives in a collapsed expander rather than competing
-for attention at the top of the page. Tabs below hold the detail:
-preregistered design, simulated results, ground-truth recovery, and the
-stakeholder memo.
+Verdict and headline metrics are visible immediately on load, no tab
+click required. The "Preregistered Design" tab keeps only a compact
+summary visible by default and tucks the full document into an
+expander, so it isn't dramatically heavier than the other three tabs.
 """
 
 import json
 import re
-import subprocess
 from pathlib import Path
 
 import pandas as pd
@@ -33,43 +31,70 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# Typography only. Colors, tabs, headers, and alerts come from
+# Typography. Colors, tabs, headers, and alerts come from
 # .streamlit/config.toml, not from CSS overrides here.
 # ---------------------------------------------------------------------------
 
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
     }
-    h1, h2, h3 {
-        font-family: 'Source Serif 4', serif;
-        font-weight: 600;
-        letter-spacing: -0.01em;
+
+    .masthead {
+        text-align: center;
+        padding-top: 0.6rem;
+        margin-bottom: 1.6rem;
     }
+    .masthead h1 {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 2.6rem;
+        letter-spacing: -0.01em;
+        color: #0E7C6B;
+        margin-bottom: 0.4rem;
+    }
+    .masthead .subtitle {
+        color: #57617A;
+        font-size: 1.02rem;
+        max-width: 62ch;
+        line-height: 1.55;
+        margin: 0 auto;
+        text-align: center;
+    }
+
     .stMarkdown p, .stMarkdown li {
         text-align: justify;
         text-justify: inter-word;
     }
-    .subtitle {
-        color: #57617A;
-        font-size: 0.98rem;
-        max-width: 68ch;
-        line-height: 1.55;
-        margin-top: -0.6rem;
-        margin-bottom: 1rem;
+
+    /* small data tags: metric labels/deltas, mono throughout */
+    [data-testid="stMetricLabel"], [data-testid="stMetricDelta"] {
+        font-family: 'Space Mono', monospace !important;
     }
+    [data-testid="stMetricLabel"] p {
+        font-family: 'Space Mono', monospace !important;
+        font-size: 0.78rem !important;
+        letter-spacing: 0.02em;
+    }
+
     code {
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: 'Space Mono', monospace;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+CHART_FONT = "Space Mono"
+INK = "#12192B"
+GOOD = "#0E7C6B"
+BAD = "#8C2F39"
+NEUTRAL = "#8A94A8"
+GRID = "#E1EAE7"
 
 # ---------------------------------------------------------------------------
 # Data loading
@@ -83,37 +108,6 @@ def load_json(path):
 @st.cache_data
 def load_text(path):
     return (ROOT / path).read_text(encoding="utf-8")
-
-
-EXPECTED_FIRST_COMMIT_SUBJECT = (
-    "Preregister design: metric, MDE, power analysis, before any simulation code exists"
-)
-
-
-@st.cache_data
-def get_commit_log():
-    try:
-        out = subprocess.run(
-            ["git", "log", "--oneline", "--reverse"],
-            cwd=ROOT, capture_output=True, text=True, check=True,
-        )
-        return out.stdout.strip()
-    except Exception:
-        return None
-
-
-def history_matches_expected_chain(commit_log):
-    """
-    A fresh `git init`, a GitHub "upload files" import, or copying the
-    folder into an existing repo all silently discard the original
-    history. Check the first commit's subject rather than trust
-    whatever happens to be on disk.
-    """
-    if not commit_log:
-        return False
-    first_line = commit_log.split("\n")[0]
-    first_subject = first_line.partition(" ")[2].strip()
-    return first_subject == EXPECTED_FIRST_COMMIT_SUBJECT
 
 
 def parse_verdict(memo_text):
@@ -144,16 +138,18 @@ try:
 except FileNotFoundError:
     has_results = False
 
-commit_log = get_commit_log()
-
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
 
-st.title("Free Shipping & Order Value")
 st.markdown(
-    "<div class='subtitle'>A preregistered, simulated A/B test. The design was "
-    "committed to git before any experimental data existed.</div>",
+    """
+    <div class="masthead">
+        <h1>Free Shipping &amp; Order Value</h1>
+        <div class="subtitle">A preregistered, simulated A/B test. The design was
+        committed to git before any experimental data existed.</div>
+    </div>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -178,7 +174,7 @@ else:
     m1, m2, m3 = st.columns(3)
     with m1:
         st.metric(
-            "AOV lift",
+            "AOV LIFT",
             f"R$ {p['point_estimate_lift']:.2f}",
             delta="Significant" if significant else "Not significant",
             delta_color="normal" if significant else "inverse",
@@ -189,7 +185,7 @@ else:
         )
     with m2:
         st.metric(
-            "Guardrail (complaint rate)",
+            "GUARDRAIL (COMPLAINT RATE)",
             f"{g['point_estimate_diff']*100:+.2f}pp",
             delta="Within margin" if not breached else "Breached margin",
             delta_color="normal" if not breached else "inverse",
@@ -201,36 +197,12 @@ else:
         )
     with m3:
         st.metric(
-            "Sample",
+            "SAMPLE",
             f"{power['required_n_per_arm']:,} / arm",
             delta="Preregistered N",
             delta_color="off",
             help=f"{power['required_total_sellers']:,} sellers total, {power['power_target']*100:.0f}% target power",
         )
-
-with st.expander("Build-order proof (git commit history)"):
-    if commit_log and history_matches_expected_chain(commit_log):
-        lines = commit_log.split("\n")
-        numbered = "\n".join(f"{i+1:02d}  {line}" for i, line in enumerate(lines))
-        st.code(numbered, language=None)
-        st.caption(
-            "The first commit is this project's preregistration, committed before any "
-            "simulation, randomization, or analysis code existed. See PREREGISTRATION.md "
-            "for the design that commit locked in."
-        )
-    elif commit_log:
-        st.warning(
-            "This checkout's first commit is not this project's preregistration commit, "
-            "so the build-order proof cannot be verified here. This usually happens when "
-            "the repository was re-initialized, re-uploaded through a web UI, or copied "
-            "into an existing repo, any of which silently discards the original history. "
-            "Re-clone or re-extract the original project archive without modifying git "
-            "history to see the real proof chain."
-        )
-        st.caption("This checkout's actual git history:")
-        st.code(commit_log, language=None)
-    else:
-        st.caption("No git history found in this checkout.")
 
 st.divider()
 
@@ -245,24 +217,23 @@ tab_design, tab_results, tab_recovery, tab_memo = st.tabs(
 with tab_design:
     st.caption(
         "Pulled directly from `PREREGISTRATION.md` and `results/power_analysis.json`, "
-        "the exact files committed to git before any simulation code was written. "
-        "This tab cannot drift from the committed design because it reads no other source."
+        "the exact files committed to git before any simulation code was written."
     )
 
     d1, d2, d3, d4, d5 = st.columns(5)
-    d1.metric("Primary MDE", f"R$ {power['primary']['mde_absolute_brl']:.0f}")
-    d2.metric("Guardrail margin", f"{power['guardrail']['non_inferiority_margin_absolute']*100:.1f}pp")
-    d3.metric("Sellers per arm", f"{power['required_n_per_arm']:,}")
-    d4.metric("Total sellers", f"{power['required_total_sellers']:,}")
-    d5.metric("Target power", f"{power['power_target']*100:.0f}%")
+    d1.metric("PRIMARY MDE", f"R$ {power['primary']['mde_absolute_brl']:.0f}")
+    d2.metric("GUARDRAIL MARGIN", f"{power['guardrail']['non_inferiority_margin_absolute']*100:.1f}pp")
+    d3.metric("SELLERS/ARM", f"{power['required_n_per_arm']:,}")
+    d4.metric("TOTAL SELLERS", f"{power['required_total_sellers']:,}")
+    d5.metric("TARGET POWER", f"{power['power_target']*100:.0f}%")
 
     st.caption(
         f"Binding constraint: **{power['binding_constraint']}**. Real Olist sellers in "
         f"scope for comparison: {power['context_real_sellers_in_scope']:,}."
     )
 
-    st.divider()
-    st.markdown(prereg_text)
+    with st.expander("Read the full preregistration document"):
+        st.markdown(prereg_text)
 
 with tab_results:
     if not has_results:
@@ -280,17 +251,17 @@ with tab_results:
             fig.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[p["control_mean_aov"], p["treatment_mean_aov"]],
-                marker_color=["#8A94A8", "#0B6E5E"],
+                marker_color=[NEUTRAL, GOOD],
                 text=[f"R$ {p['control_mean_aov']:.2f}", f"R$ {p['treatment_mean_aov']:.2f}"],
                 textposition="outside",
-                textfont=dict(color="#12192B"),
+                textfont=dict(color=INK, family=CHART_FONT, size=13),
             ))
             fig.update_layout(
                 template="plotly_white",
-                plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                font=dict(family="Inter", color="#12192B"),
+                plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+                font=dict(family=CHART_FONT, color=INK, size=12),
                 yaxis_title="Mean AOV (R$)",
-                yaxis=dict(gridcolor="#E7EBF2"),
+                yaxis=dict(gridcolor=GRID),
                 height=340, margin=dict(t=20, b=20, l=40, r=20),
             )
             st.plotly_chart(fig, use_container_width=True)
@@ -301,27 +272,27 @@ with tab_results:
             fig2.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[g["control_complaint_rate"] * 100, g["treatment_complaint_rate"] * 100],
-                marker_color=["#8A94A8", "#8C2F39" if breach else "#0B6E5E"],
+                marker_color=[NEUTRAL, BAD if breach else GOOD],
                 text=[f"{g['control_complaint_rate']*100:.1f}%", f"{g['treatment_complaint_rate']*100:.1f}%"],
                 textposition="inside",
                 insidetextanchor="end",
-                textfont=dict(color="#FFFFFF", size=13),
+                textfont=dict(color="#FFFFFF", family=CHART_FONT, size=13),
             ))
             ceiling_value = g["control_complaint_rate"] * 100 + g["non_inferiority_margin"] * 100
             fig2.add_hline(
                 y=ceiling_value,
-                line_dash="dash", line_color="#8C2F39",
+                line_dash="dash", line_color=BAD,
                 annotation_text="non-inferiority ceiling",
-                annotation_font_color="#8C2F39",
+                annotation_font=dict(color=BAD, family=CHART_FONT, size=11),
                 annotation_position="top left",
             )
             max_bar = max(g["control_complaint_rate"], g["treatment_complaint_rate"]) * 100
             fig2.update_layout(
                 template="plotly_white",
-                plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                font=dict(family="Inter", color="#12192B"),
+                plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+                font=dict(family=CHART_FONT, color=INK, size=12),
                 yaxis_title="Complaint rate (%)",
-                yaxis=dict(gridcolor="#E7EBF2", range=[0, max(ceiling_value, max_bar) * 1.18]),
+                yaxis=dict(gridcolor=GRID, range=[0, max(ceiling_value, max_bar) * 1.18]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
             st.plotly_chart(fig2, use_container_width=True)
