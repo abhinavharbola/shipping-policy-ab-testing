@@ -1,30 +1,53 @@
 # Experiment Design & Power Analysis for a Shipping Policy Change
 
-This is a **simulated experiment, not a live test on real users.** Real
-Olist e-commerce data is used only to calibrate realistic simulation
-parameters: category-level order-value distributions and baseline
-delivery-complaint rates. No hypothesis test anywhere in this project
-runs against real, unrandomized Olist orders; every p-value and
-confidence interval here comes from a synthetic, randomly assigned
-population with a known, injected effect. This is a companion to a
-separate observational-data project (propensity matching, Rosenbaum
-bounds) and deliberately does not overlap with it: this project is
-about running an A/B test correctly, not about salvaging causal claims
-from data that was never randomized.
+A preregistered, simulated A/B test on whether free shipping raises average
+order value without meaningfully hurting delivery-complaint rates, with the
+entire design (metric, MDE, sample size, tests) locked into git *before* a
+single row of experimental data existed.
 
-The Olist dataset also appears in other, unrelated projects in this
-portfolio. That reuse is deliberate: it's a convenient, realistic,
-public e-commerce dataset, not an oversight, and here its role is
-strictly limited to calibration.
+Built as a portfolio project calibrated from a real public dataset, but the
+experiment itself is fully simulated: no hypothesis test in this project ever
+runs against real, unrandomized orders.
 
-## The point of this project
+## Preview
+
+<p align="center">
+  <img src="docs/screenshots/ui-landing.png" width="720" alt="Streamlit dashboard showing the GO verdict banner and three headline metrics: AOV lift, guardrail status, and sample size">
+  <br>
+  <sub><em>Landing view: verdict and headline metrics are visible immediately, no tab click required.</em></sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/ui-results.png" width="720" alt="Simulated Results tab showing order value and complaint rate bar charts by arm, with a non-inferiority ceiling line">
+  <br>
+  <sub><em>Simulated Results tab: order value and guardrail charts, with the preregistered non-inferiority ceiling drawn in.</em></sub>
+</p>
+
+## What this is
+
+Given a business question (does free shipping raise AOV without hurting
+satisfaction), the project:
+
+1. Calibrates realistic simulation parameters from real Olist order data,
+   descriptive statistics only, never a hypothesis test.
+2. Computes the required sample size from those calibration numbers alone,
+   and locks metric, MDE, and test choice into `PREREGISTRATION.md`,
+   committed to git before any simulation code exists.
+3. Simulates a population with a known, injected effect using potential
+   outcomes, so a ground truth exists to check the analysis against.
+4. Randomizes sellers into arms, revealing exactly one potential outcome per
+   seller and physically discarding the other.
+5. Runs exactly the preregistered tests, once, on the full sample, then
+   separately checks the result against the known injected effect.
+6. Reports through a plain-language stakeholder memo and a live dashboard,
+   both generated from the analysis output only.
+
+## Build-order proof
 
 Most "A/B test" write-ups skip straight to the analysis. The actual
-discipline of experimentation is in what happens *before* you see any
-data: picking a metric, committing to a minimum effect worth acting on,
-sizing the sample, and writing down which test you'll run, all before
-a single row of experimental data exists. This project enforces that
-order literally, through git history, not just prose:
+discipline of experimentation is in what happens *before* you see any data,
+and this project enforces that order literally, through git history, not
+just prose:
 
 ```
 7ba1f90 Preregister design: metric, MDE, power analysis, before any
@@ -32,22 +55,84 @@ order literally, through git history, not just prose:
 70722c0 Simulate population, randomize, and run preregistered analysis
 ```
 
-`PREREGISTRATION.md` and the power analysis were committed in isolation,
-*before* the simulation, randomization, or analysis code existed (at that
-point in history they were flat scripts named `generate_population.py`,
-`randomize.py`, `analyze.py`; later commits reorganized them, first into
-`src/shipping_experiment/`, then into `src/pipeline/simulate.py`,
-`randomize.py`, `analyze.py`, both times via `git mv`, so
-`git log --follow <path>` still shows the full history through both
-renames). Nothing in the design could have been fit to a result, because
-no result existed yet. Run `git log --oneline` for the full history: the
-commits after `70722c0` are documentation, a bug fix to the simulation's
-orders-per-seller calibration, and two repo restructurings into a standard
-`src` package layout, all made after the design was already locked, and
-none of them touch `PREREGISTRATION.md` or change any number it quotes,
-which `git show 7ba1f90:PREREGISTRATION.md` confirms.
+`PREREGISTRATION.md` and the power analysis were committed in isolation
+*before* the simulation, randomization, or analysis code existed. Nothing in
+the design could have been fit to a result, because no result existed yet.
+Every commit after `70722c0` (documentation, a calibration bug fix, two repo
+restructurings) leaves `PREREGISTRATION.md` untouched, which
+`git show 7ba1f90:PREREGISTRATION.md` confirms against the current file at
+any time.
 
-## Project layout
+## Pipeline
+
+```mermaid
+flowchart TD
+    raw[(data/raw\nOlist CSVs)] --> calib[calibration.py\ndescriptive stats only]
+    calib --> power[power_analysis.py\nrequired N per arm]
+    power --> prereg[[PREREGISTRATION.md\ncommitted alone]]
+    prereg --> sim[simulate.py\npotential outcomes,\nknown injected effect]
+    sim --> rand[randomize.py\nreveals one arm per seller]
+    rand --> analyze{analyze.py\npreregistered tests only}
+    analyze --> recovery[ground-truth\nrecovery check]
+    analyze --> memo[reporting.py\nstakeholder memo]
+    recovery --> dash([Streamlit dashboard])
+    memo --> dash
+```
+
+## Design decisions
+
+| Decision | Choice | Why |
+|---|---|---|
+| Primary metric | Mean per-seller AOV | Matches the unit of randomization; see `PREREGISTRATION.md` §2 |
+| Primary MDE | R$25 absolute lift | Grounded in the ~R$23 average freight cost a seller absorbs; a smaller lift can't cover its own cost |
+| Guardrail metric | Delivery-complaint rate (review score ≤ 2) | Prevents an AOV win from masking a satisfaction loss |
+| Guardrail margin | 2.0pp non-inferiority | ~15% relative increase; the threshold past which the satisfaction cost plausibly outweighs the AOV gain |
+| Randomization unit | Seller, not order | Order-level randomization would violate SUTVA within a seller's own order stream |
+| Primary test | Welch's t-test | A shipping-cost change plausibly creates unequal variance between arms |
+| Guardrail test | One-sided two-proportion z-test | The business question is non-inferiority, not two-sided |
+| Required sample size | 2,499 sellers/arm (4,998 total) | Binding constraint is the primary metric, not the guardrail |
+
+## Guardrails
+
+- **No-peeking enforcement.** `analyze()` raises `PartialDatasetError` on
+  anything but the exact preregistered N per arm, checked in
+  `tests/test_stopping_rule.py`. Checking a running experiment repeatedly and
+  stopping at the first `p < 0.05` inflates the true false-positive rate well
+  above 5%; this project makes exactly one inferential claim, at a
+  pre-committed sample size, instead.
+- **Dataset-role enforcement.** No function in `analyze.py` or `reporting.py`
+  can read raw Olist data or the known injected effect, verified with an AST
+  inspection in `tests/test_no_raw_data_leak.py`, not just a comment saying so.
+- **Ground-truth isolation.** The known injected effect is written once by
+  `simulate.py` and read only by `check_ground_truth_recovery()`, after
+  `analyze()` has already returned a result from data that never saw it.
+- **Zero-leakage randomization.** `randomize.py` reveals exactly one
+  potential outcome per seller and physically drops the counterfactual
+  columns from the file `analyze.py` reads, asserted in code, not assumed.
+- **Immutable preregistration.** `PREREGISTRATION.md` is never edited after
+  its first commit; every later change to this project is diffed against
+  `git show 7ba1f90:PREREGISTRATION.md` before shipping.
+
+## Data
+
+- **`data/raw/`** real Olist CSVs, user-supplied and gitignored. Used only by
+  `calibration.py` for descriptive statistics: category-level order-value
+  distributions and baseline complaint rates. No hypothesis test in this
+  project runs against this data.
+- **`src/data/calibration/`** `calibration_params.json`, committed. The only
+  bridge between real data and the simulation: category weights, AOV
+  mean/std, baseline complaint rate.
+- **`src/data/simulated/`** the synthetic population and randomized
+  assignment, regenerable deterministically from a fixed seed, gitignored.
+- **`results/`** power analysis, analysis results, recovery check, and memo,
+  committed.
+
+The Olist dataset also appears in other, unrelated projects in this
+portfolio; that reuse is deliberate (a convenient, realistic, public
+e-commerce dataset), not an oversight, and here its role is strictly limited
+to calibration.
+
+## Project structure
 
 ```
 .
@@ -67,144 +152,106 @@ which `git show 7ba1f90:PREREGISTRATION.md` confirms.
 │       ├── randomize.py         # step 5
 │       ├── analyze.py           # step 6
 │       └── reporting.py         # step 7
-├── dashboard/app.py            # step 8, Streamlit
+├── dashboard/app.py            # live results, Streamlit
 ├── results/                    # power analysis, analysis results, memo, committed
-├── scripts/run_pipeline.py     # runs steps 1-7 in order
-└── tests/                      # step 9
+├── scripts/run_pipeline.py     # runs the pipeline steps in order
+├── docs/screenshots/           # README preview images
+└── tests/                      # see Evaluation below
 ```
 
-Raw input data lives at the project root (`data/raw/`) since it's an
-external input, not an artifact of the code. Everything the pipeline
-itself generates or consumes as a side effect of running (`calibration/`,
-`simulated/`) lives under `src/data/`, next to the code that produces and
-reads it.
+## Getting started
 
-## Pipeline
+1. **Data.** `src/data/calibration/calibration_params.json` is already
+   committed, so you don't need the raw CSVs to run anything past
+   calibration. To re-derive calibration from scratch, download the
+   [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
+   and place `olist_orders_dataset.csv`, `olist_order_items_dataset.csv`,
+   `olist_order_reviews_dataset.csv`, `olist_products_dataset.csv`, and
+   `product_category_name_translation.csv` in `data/raw/`.
 
-```
-calibration.py     -> src/data/calibration/calibration_params.json
-        (real data, descriptive stats only, no hypothesis test)
-power_analysis.py  -> results/power_analysis.json
-        (reads calibration only; computes required N per arm)
-PREREGISTRATION.md  [committed to git here, alone]
-simulate.py         -> src/data/simulated/population_potential_outcomes.csv
-        (synthetic sellers; each order gets a control AND a
-        treatment potential outcome, with a known effect on the
-        treatment side)
-randomize.py        -> src/data/simulated/assigned_experiment.csv
-        (assigns each seller to one arm, reveals only that arm's
-        outcome, physically drops the counterfactual columns)
-analyze.py          -> results/analysis_results.json,
-                        results/recovery_check.json
-        (runs exactly the preregistered tests; separately checks
-        the result against the known injected effect)
-reporting.py        -> results/memo.md
-dashboard/app.py    (streamlit)
-```
+2. **Install**
+   ```bash
+   pip install -e ".[dashboard,dev]"
+   ```
+   Installs the `pipeline` package, six console commands
+   (`shipping-calibrate`, `shipping-power`, `shipping-simulate`,
+   `shipping-randomize`, `shipping-analyze`, `shipping-report`), the
+   dashboard's dependencies, and pytest. If you'd rather not install it as a
+   package, `pip install -r requirements.txt` and call each module directly
+   instead (`python3 -m pipeline.calibration`, etc.); both approaches run the
+   exact same code.
 
-## Setup
+## Running it
 
 ```bash
-pip install -e ".[dashboard,dev]"
+python3 scripts/run_pipeline.py   # calibrate -> power -> simulate -> randomize -> analyze -> report
+streamlit run dashboard/app.py    # live results dashboard
+python3 -m pytest tests/          # 20 tests, see Evaluation below
 ```
 
-This installs the `pipeline` package plus six console commands
-(`shipping-calibrate`, `shipping-power`, `shipping-simulate`,
-`shipping-randomize`, `shipping-analyze`, `shipping-report`), the
-dashboard's dependencies, and pytest. If you'd rather not install it as a
-package, `pip install -r requirements.txt` and call each module directly
-instead (`python3 -m pipeline.calibration`, etc.); both approaches run
-the exact same code.
+`scripts/run_pipeline.py` doesn't require `pip install -e .` first (it puts
+`src/` on `sys.path` itself). `PREREGISTRATION.md` is already written and
+committed; the pipeline never regenerates it.
 
-## Run in order
+## Evaluation
 
-```bash
-shipping-calibrate
-shipping-power
-# PREREGISTRATION.md is already written and committed in this repo's history
-shipping-simulate
-shipping-randomize
-shipping-analyze
-shipping-report
-streamlit run dashboard/app.py
-```
+`tests/` is this project's core differentiator, not a checkbox.
 
-Or, to run the first six steps in one go instead of typing them out:
+- **`test_power_analysis.py`** validates the power calculation against a
+  known textbook example (Cohen's d = 0.5 → n ≈ 64 per arm).
+- **`test_randomization_balance.py`** checks arms stay balanced across
+  repeated seeds and that no counterfactual column leaks into the revealed
+  dataset.
+- **`test_stopping_rule.py`** confirms `analyze()` rejects a partial or
+  over-accrued dataset instead of silently running on it.
+- **`test_recovery_check_catches_bugs.py`** is a mutation test: it
+  deliberately confounds the randomization and confirms the recovery check
+  actually fails, proving the check can catch a real bug and isn't passing
+  by construction.
+- **`test_no_raw_data_leak.py`** is an AST-level check that raw data and the
+  known injected effect never reach `analyze()` or `reporting.py` through
+  any path except the one function whose entire job is the recovery check.
+- **`test_memo_rendering.py`** is a regression test for a real bug found via
+  screenshot review: Streamlit's markdown renderer treats paired `$`
+  characters as LaTeX math, which silently broke the memo's currency
+  formatting.
 
-```bash
-python3 scripts/run_pipeline.py
-```
-
-It doesn't require `pip install -e .` first (it puts `src/` on
-`sys.path` itself), runs the six steps in order, and finishes by
-telling you to run the dashboard.
-
-## Design summary
-
-- **Business question:** does free shipping raise average order value
-  (AOV) without meaningfully increasing the delivery-complaint rate.
-- **Unit of randomization:** seller, not order; see PREREGISTRATION.md
-  section 2 for the SUTVA/interference argument.
-- **Primary metric / MDE:** mean per-seller AOV; MDE = R$25, grounded in
-  the ~R$23 average freight cost a seller absorbs (see PREREGISTRATION.md
-  section 3 for the full argument).
-- **Guardrail metric / margin:** delivery-complaint rate (review score
-  ≤ 2); non-inferiority margin of +2.0 percentage points on a 13.11%
-  baseline.
-- **Required sample size:** 2,499 sellers per arm (4,998 total), set by
-  the primary metric (the binding constraint over the guardrail).
-- **Tests:** Welch's t-test on seller-level mean AOV (primary);
-  one-sided two-proportion z-test on pooled order-level complaint counts
-  (guardrail), documented in PREREGISTRATION.md as a deliberate
-  simplification of the ideal seller-clustered version.
+20/20 passing, `pyflakes` clean.
 
 ## Ground-truth recovery, with the actual numbers
 
-The simulated population has a true injected AOV lift of R$28.00 and a
-true injected complaint-rate increase of 1.2 percentage points. The
-preregistered analysis, run once on the full sample, recovered:
+The simulated population has a true injected AOV lift of R$28.00 and a true
+injected complaint-rate increase of 1.2 percentage points. The preregistered
+analysis, run once on the full sample, recovered:
 
 | | Point estimate | 95% CI | True value | Recovered? |
 |---|---|---|---|---|
 | AOV lift | R$31.59 | [R$24.10, R$39.09] | R$28.00 | Yes |
 | Complaint rate diff | +1.06pp | [+0.73pp, +1.40pp] | +1.20pp | Yes |
 
-Both intervals contain their true injected value, and the guardrail
-correctly did not breach the 2.0-point margin. This is one seeded run,
-not proof the method generalizes to every possible effect; see
-limitations below.
-
-## Why fixed-horizon, no-peeking matters
-
-If you check a running experiment repeatedly and stop the first time
-p < 0.05, your true false-positive rate is much higher than 5%, because
-you gave chance many independent opportunities to produce a fluky
-"significant" result and only needed one. This project commits to a
-single look, at a pre-specified sample size, computed before any data
-existed (see PREREGISTRATION.md section 6). `src/pipeline/analyze.py`'s
-`analyze()` function enforces this in code: it raises `PartialDatasetError` if the
-dataset it's given doesn't contain exactly the preregistered number of
-sellers per arm (`tests/test_stopping_rule.py`).
+Both intervals contain their true injected value, and the guardrail correctly
+did not breach the 2.0-point margin. This is one seeded run, not proof the
+method generalizes to every possible effect; see limitations below.
 
 ## Known limitations
 
-- **Recovery is necessary, not sufficient.** A single seeded run whose
-  CI happens to contain the true effect is expected roughly 95% of the
-  time by construction, even for a correctly-built method; this run
-  passing is a smoke test that the pipeline isn't obviously broken, not
-  a proof the method generalizes to every real, unknown effect size.
-- **Seller-level randomization assumes no cross-seller interference.**
-  If sellers compete for the same limited customer pool, or if Olist's
-  own marketing shifts customers toward whichever sellers currently
-  offer free shipping, that would leak treatment effect across arms and
-  bias the estimate. Real deployment would need to check for this.
+- **Recovery is necessary, not sufficient.** A single seeded run whose CI
+  happens to contain the true effect is expected roughly 95% of the time by
+  construction, even for a correctly-built method; this run passing is a
+  smoke test that the pipeline isn't obviously broken, not proof the method
+  generalizes to every real, unknown effect size.
+- **Seller-level randomization assumes no cross-seller interference.** If
+  sellers compete for the same limited customer pool, or if Olist's own
+  marketing shifts customers toward whichever sellers currently offer free
+  shipping, that would leak treatment effect across arms and bias the
+  estimate. Real deployment would need to check for this.
 - **Guardrail test clustering simplification.** The guardrail test pools
-  order-level complaint counts by arm rather than using a seller-clustered
-  or cluster-robust estimator, understating the true standard error. This
-  is anti-conservative (slightly more likely to flag a guardrail breach
-  than a fully rigorous version would), documented in PREREGISTRATION.md
-  section 8, and left as a known simplification rather than fixed, since
-  it does not change this run's conclusion.
-- **Calibration reflects Olist's category mix and Brazil's market.**
-  Baseline AOV distributions and complaint rates may not generalize to a
-  different marketplace, region, or time period.
+  order-level complaint counts by arm rather than using a seller-clustered or
+  cluster-robust estimator, understating the true standard error. This is
+  anti-conservative (slightly more likely to flag a guardrail breach than a
+  fully rigorous version would), documented in `PREREGISTRATION.md` §8, and
+  left as a known simplification rather than fixed, since it does not change
+  this run's conclusion.
+- **Calibration reflects Olist's category mix and Brazil's market.** Baseline
+  AOV distributions and complaint rates may not generalize to a different
+  marketplace, region, or time period.
