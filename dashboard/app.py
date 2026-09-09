@@ -23,10 +23,11 @@ import plotly.graph_objects as go
 import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
+ASSETS = Path(__file__).resolve().parent.parent / "assets"
 
 st.set_page_config(
     page_title="Free Shipping Experiment: Preregistered A/B Test",
-    page_icon="\u25c6",
+    page_icon=str(ASSETS / "favicon.png"),
     layout="wide",
 )
 
@@ -38,7 +39,7 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&family=Red+Hat+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
@@ -50,19 +51,18 @@ st.markdown(
         margin-bottom: 1.6rem;
     }
     .masthead h1 {
-        font-family: 'Space Grotesk', sans-serif;
+        font-family: 'Source Serif 4', serif;
         font-weight: 700;
         font-size: 2.6rem;
         letter-spacing: -0.01em;
-        color: #0E7C6B;
+        color: #12192B;
         margin-bottom: 0.4rem;
     }
     .masthead .subtitle {
         color: #57617A;
         font-size: 1.02rem;
-        max-width: 62ch;
+        width: 100%;
         line-height: 1.55;
-        margin: 0 auto;
         text-align: center;
     }
 
@@ -71,25 +71,36 @@ st.markdown(
         text-justify: inter-word;
     }
 
-    /* small data tags: metric labels/deltas, mono throughout */
+    /* tabs: stretch evenly across the full width instead of clumping left */
+    [data-testid="stTabs"] [role="tablist"] {
+        display: flex;
+        width: 100%;
+    }
+    [data-testid="stTab"] {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+    }
+
+    /* small data tags: metric labels/deltas, mono throughout (title excluded) */
     [data-testid="stMetricLabel"], [data-testid="stMetricDelta"] {
-        font-family: 'Space Mono', monospace !important;
+        font-family: 'Red Hat Mono', monospace !important;
     }
     [data-testid="stMetricLabel"] p {
-        font-family: 'Space Mono', monospace !important;
+        font-family: 'Red Hat Mono', monospace !important;
         font-size: 0.78rem !important;
         letter-spacing: 0.02em;
     }
 
     code {
-        font-family: 'Space Mono', monospace;
+        font-family: 'Red Hat Mono', monospace;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-CHART_FONT = "Space Mono"
+CHART_FONT = "Red Hat Mono"
 INK = "#12192B"
 GOOD = "#0E7C6B"
 BAD = "#8C2F39"
@@ -171,19 +182,19 @@ else:
     significant = p["significant_at_alpha_0.05"]
     breached = g["guardrail_breached"]
 
-    m1, m2, m3 = st.columns(3)
-    with m1:
+    m1, m2, m3 = st.columns(3, gap="small")
+    with m1, st.container(border=True):
         st.metric(
             "AOV LIFT",
             f"R$ {p['point_estimate_lift']:.2f}",
             delta="Significant" if significant else "Not significant",
             delta_color="normal" if significant else "inverse",
             help=(
-                f"95% CI: R$ {p['ci_95_low']:.2f} to R$ {p['ci_95_high']:.2f}  \n"
+                f"95% CI: `R$ {p['ci_95_low']:.2f}` to `R$ {p['ci_95_high']:.2f}`  \n"
                 f"p = {p['p_value']:.2e} (Welch's t-test)"
             ),
         )
-    with m2:
+    with m2, st.container(border=True):
         st.metric(
             "GUARDRAIL (COMPLAINT RATE)",
             f"{g['point_estimate_diff']*100:+.2f}pp",
@@ -195,7 +206,7 @@ else:
                 f"Treatment {g['treatment_complaint_rate']*100:.1f}%"
             ),
         )
-    with m3:
+    with m3, st.container(border=True):
         st.metric(
             "SAMPLE",
             f"{power['required_n_per_arm']:,} / arm",
@@ -220,12 +231,17 @@ with tab_design:
         "the exact files committed to git before any simulation code was written."
     )
 
-    d1, d2, d3, d4, d5 = st.columns(5)
-    d1.metric("PRIMARY MDE", f"R$ {power['primary']['mde_absolute_brl']:.0f}")
-    d2.metric("GUARDRAIL MARGIN", f"{power['guardrail']['non_inferiority_margin_absolute']*100:.1f}pp")
-    d3.metric("SELLERS/ARM", f"{power['required_n_per_arm']:,}")
-    d4.metric("TOTAL SELLERS", f"{power['required_total_sellers']:,}")
-    d5.metric("TARGET POWER", f"{power['power_target']*100:.0f}%")
+    d1, d2, d3, d4, d5 = st.columns(5, gap="small")
+    with d1, st.container(border=True):
+        st.metric("PRIMARY MDE", f"R$ {power['primary']['mde_absolute_brl']:.0f}")
+    with d2, st.container(border=True):
+        st.metric("GUARDRAIL MARGIN", f"{power['guardrail']['non_inferiority_margin_absolute']*100:.1f}pp")
+    with d3, st.container(border=True):
+        st.metric("SELLERS/ARM", f"{power['required_n_per_arm']:,}")
+    with d4, st.container(border=True):
+        st.metric("TOTAL SELLERS", f"{power['required_total_sellers']:,}")
+    with d5, st.container(border=True):
+        st.metric("TARGET POWER", f"{power['power_target']*100:.0f}%")
 
     st.caption(
         f"Binding constraint: **{power['binding_constraint']}**. Real Olist sellers in "
@@ -341,4 +357,57 @@ with tab_memo:
     if not has_results:
         st.info("Run `shipping-report` (or `python3 -m pipeline.reporting`) to populate this tab.")
     else:
-        st.markdown(memo_text)
+        p = results["primary"]
+        g = results["guardrail"]
+        verdict, reasoning = parse_verdict(memo_text)
+        breach = g["guardrail_breached"]
+        significant = p["significant_at_alpha_0.05"]
+        n_total = p["n_treatment_sellers"] + p["n_control_sellers"]
+
+        st.markdown(f"##### Recommendation: {verdict}")
+        if verdict == "GO":
+            st.success(reasoning)
+        else:
+            st.error(reasoning)
+
+        st.markdown("##### What we tested")
+        st.markdown(
+            f"- Randomly split **{n_total:,} sellers** into two equal groups: standard "
+            "shipping vs. free shipping\n"
+            "- Measured whether free shipping changed **average order value**\n"
+            "- Separately checked whether it made **delivery complaints** worse"
+        )
+
+        st.markdown("##### Results at a glance")
+        c1, c2 = st.columns(2, gap="small")
+        with c1, st.container(border=True):
+            st.metric(
+                "ORDER VALUE (TREATMENT)",
+                f"R$ {p['treatment_mean_aov']:.2f}",
+                delta=f"R$ {p['point_estimate_lift']:.2f} vs control",
+                delta_color="normal" if significant else "off",
+            )
+            st.caption(
+                f"Control: `R$ {p['control_mean_aov']:.2f}` \u00b7 "
+                f"95% CI [`R$ {p['ci_95_low']:.2f}`, `R$ {p['ci_95_high']:.2f}`]"
+            )
+        with c2, st.container(border=True):
+            st.metric(
+                "COMPLAINT RATE (TREATMENT)",
+                f"{g['treatment_complaint_rate']*100:.1f}%",
+                delta=f"{g['point_estimate_diff']*100:+.2f}pp vs control",
+                delta_color="inverse" if breach else "normal",
+            )
+            st.caption(
+                f"Control: {g['control_complaint_rate']*100:.1f}% \u00b7 "
+                f"Margin: {g['non_inferiority_margin']*100:.1f}pp"
+            )
+
+        st.markdown("##### Bottom line")
+        if verdict == "GO":
+            st.success(reasoning)
+        else:
+            st.error(reasoning)
+
+        with st.expander("Read as a plain-text memo"):
+            st.markdown(memo_text)
