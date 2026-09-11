@@ -3,10 +3,10 @@
 Written before any simulated data exists. The only inputs used below are
 descriptive statistics computed from real, historical Olist orders
 (`data/calibration/calibration_params.json`, produced by
-`calibrate_from_olist.py`). No hypothesis test has been run on that data
+`calibration.py`). No hypothesis test has been run on that data
 and none ever will be; it is used solely to calibrate realistic
 simulation parameters. This document is committed to git before
-`generate_population.py`, `randomize.py`, or `analyze.py` are written.
+`simulate.py`, `randomize.py`, or `analyze.py` are written.
 
 ## 1. Hypothesis
 
@@ -55,7 +55,7 @@ of what the AOV result shows.
 
 ## 4. Power analysis and required sample size
 
-Computed by `mde_calculator.py` from calibration parameters only. Full
+Computed by `power_analysis.py` from calibration parameters only. Full
 output: `results/power_analysis.json`.
 
 | | Primary (AOV) | Guardrail (complaint rate) |
@@ -145,6 +145,6 @@ README limitations).
 ## 9. Commit discipline
 
 This file is committed to git as its own commit before
-`generate_population.py`, `randomize.py`, or `analyze.py` are written.
+`simulate.py`, `randomize.py`, or `analyze.py` are written.
 The git log is the literal proof the design was fixed before the
 simulated data existed to fit it to.

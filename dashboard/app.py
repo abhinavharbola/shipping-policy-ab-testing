@@ -12,10 +12,23 @@ Verdict and headline metrics are visible immediately on load, no tab
 click required. The "Preregistered Design" tab keeps only a compact
 summary visible by default and tucks the full document into an
 expander, so it isn't dramatically heavier than the other three tabs.
+
+The verdict shown here is computed by calling `pipeline.reporting`'s
+`recommendation()` directly on the already-computed analysis output,
+not by re-parsing the rendered memo.md text. That keeps "exactly one
+place the decision gets made" true without depending on the memo's
+markdown formatting staying byte-for-byte stable.
+
+Formatting conventions used throughout this file, kept consistent on
+purpose: currency (R$) always shows 2 decimal places; percentages and
+percentage-point deltas always show 1. Currency figures inside markdown
+(st.caption, st.markdown, metric help text) are wrapped in backtick code
+spans - `` `R$ 24.10` `` - so Streamlit's markdown renderer doesn't pair
+the dollar signs up as inline LaTeX math.
 """
 
 import json
-import re
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -24,10 +37,20 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
+FAVICON_PATH = ASSETS / "favicon.png"
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from pipeline.reporting import next_step, recommendation  # noqa: E402
+
+# page_icon must be a real file, an emoji, or None. Fall back instead of
+# crashing on startup if assets/favicon.png hasn't been added to the repo.
+PAGE_ICON = str(FAVICON_PATH) if FAVICON_PATH.is_file() else "\U0001F69A"
 
 st.set_page_config(
     page_title="Free Shipping Experiment: Preregistered A/B Test",
-    page_icon=str(ASSETS / "favicon.png"),
+    page_icon=PAGE_ICON,
     layout="wide",
 )
 
@@ -121,23 +144,6 @@ def load_text(path):
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def parse_verdict(memo_text):
-    """
-    Pulls the verdict straight out of the committed memo rather than
-    recomputing go/no-go logic separately in the dashboard, so there is
-    exactly one place that decision gets made.
-    """
-    match = re.search(
-        r"## Recommendation: (GO|NO-GO)\s*\n+(.+?)(?:\n\n|\Z)",
-        memo_text, re.DOTALL,
-    )
-    if not match:
-        return None, None
-    verdict = match.group(1)
-    reasoning = " ".join(match.group(2).split())
-    return verdict, reasoning
-
-
 power = load_json("results/power_analysis.json")
 prereg_text = load_text("PREREGISTRATION.md")
 
@@ -172,12 +178,12 @@ if not has_results:
     st.info("Run the pipeline (see README) to populate the verdict and results.")
 else:
     p, g = results["primary"], results["guardrail"]
-    verdict, reasoning = parse_verdict(memo_text)
+    verdict, reasoning = recommendation(p, g)
 
     if verdict == "GO":
         st.success(f"**{verdict}.** {reasoning}")
     else:
-        st.error(f"**{verdict or 'PENDING'}.** {reasoning or 'Run the analysis to see a recommendation.'}")
+        st.error(f"**{verdict}.** {reasoning}")
 
     significant = p["significant_at_alpha_0.05"]
     breached = g["guardrail_breached"]
@@ -197,7 +203,7 @@ else:
     with m2, st.container(border=True):
         st.metric(
             "GUARDRAIL (COMPLAINT RATE)",
-            f"{g['point_estimate_diff']*100:+.2f}pp",
+            f"{g['point_estimate_diff']*100:+.1f}pp",
             delta="Within margin" if not breached else "Breached margin",
             delta_color="normal" if not breached else "inverse",
             help=(
@@ -258,16 +264,27 @@ with tab_results:
         p = results["primary"]
         g = results["guardrail"]
         breach = g["guardrail_breached"]
+        significant = p["significant_at_alpha_0.05"]
 
         col1, col2 = st.columns(2)
 
         with col1:
             st.markdown("**Order value by arm**")
+            # Color reflects the actual statistical result, the same way
+            # the complaint-rate chart's color reflects breach status:
+            # green only when the lift is both significant and positive,
+            # red if it's significant and negative, neutral otherwise.
+            if significant and p["point_estimate_lift"] > 0:
+                treatment_color = GOOD
+            elif significant and p["point_estimate_lift"] < 0:
+                treatment_color = BAD
+            else:
+                treatment_color = NEUTRAL
             fig = go.Figure()
             fig.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[p["control_mean_aov"], p["treatment_mean_aov"]],
-                marker_color=[NEUTRAL, GOOD],
+                marker_color=[NEUTRAL, treatment_color],
                 text=[f"R$ {p['control_mean_aov']:.2f}", f"R$ {p['treatment_mean_aov']:.2f}"],
                 textposition="outside",
                 textfont=dict(color=INK, family=CHART_FONT, size=13),
@@ -359,7 +376,7 @@ with tab_memo:
     else:
         p = results["primary"]
         g = results["guardrail"]
-        verdict, reasoning = parse_verdict(memo_text)
+        verdict, reasoning = recommendation(p, g)
         breach = g["guardrail_breached"]
         significant = p["significant_at_alpha_0.05"]
         n_total = p["n_treatment_sellers"] + p["n_control_sellers"]
@@ -395,7 +412,7 @@ with tab_memo:
             st.metric(
                 "COMPLAINT RATE (TREATMENT)",
                 f"{g['treatment_complaint_rate']*100:.1f}%",
-                delta=f"{g['point_estimate_diff']*100:+.2f}pp vs control",
+                delta=f"{g['point_estimate_diff']*100:+.1f}pp vs control",
                 delta_color="inverse" if breach else "normal",
             )
             st.caption(
@@ -403,11 +420,8 @@ with tab_memo:
                 f"Margin: {g['non_inferiority_margin']*100:.1f}pp"
             )
 
-        st.markdown("##### Bottom line")
-        if verdict == "GO":
-            st.success(reasoning)
-        else:
-            st.error(reasoning)
+        st.markdown("##### What happens next")
+        st.info(next_step(p, g, verdict))
 
         with st.expander("Read as a plain-text memo"):
             st.markdown(memo_text)

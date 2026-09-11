@@ -40,6 +40,38 @@ def recommendation(primary, guardrail):
     return "NO-GO", "Hold off. The result does not clear the bar we set before running this test."
 
 
+def next_step(primary, guardrail, verdict):
+    """
+    A forward-looking action, distinct from the verdict reasoning above it.
+    The memo previously repeated the exact same sentence under both
+    'Recommendation' and 'Bottom line' - this gives the reader something
+    new the second time instead of an echo.
+    """
+    if verdict == "GO":
+        return (
+            "Ship the change, then keep watching the complaint rate for at "
+            "least one full cycle after rollout. The guardrail held in this "
+            "trial; it still needs to hold outside it."
+        )
+    if guardrail["guardrail_breached"]:
+        return (
+            "Fix delivery capacity or expectations before re-testing. "
+            "Rerunning the same experiment without addressing what's "
+            "driving complaints will likely breach the guardrail again."
+        )
+    if not primary["significant_at_alpha_0.05"]:
+        return (
+            "This trial was powered to detect a lift at least as large as "
+            "the preregistered MDE. If a smaller lift would still be worth "
+            "having, the next step is a larger sample, not a different test."
+        )
+    return (
+        "The observed effect runs counter to the hypothesis. Treat this as "
+        "evidence against the policy change in its current form, not as an "
+        "inconclusive result."
+    )
+
+
 def build_memo(results):
     primary = results["primary"]
     guardrail = results["guardrail"]
@@ -47,6 +79,14 @@ def build_memo(results):
 
     lift = primary["point_estimate_lift"]
     ci_low, ci_high = primary["ci_95_low"], primary["ci_95_high"]
+    lift_significant = primary["significant_at_alpha_0.05"]
+    significance_sentence = (
+        "This interval does not include zero, so the lift is unlikely "
+        "to be due to chance."
+        if lift_significant
+        else "This interval includes zero, so this result cannot be "
+        "distinguished from no effect at all."
+    )
     g_rate_t = guardrail["treatment_complaint_rate"] * 100
     g_rate_c = guardrail["control_complaint_rate"] * 100
     g_diff = guardrail["point_estimate_diff"] * 100
@@ -70,8 +110,7 @@ whether it made delivery complaints worse.
 Sellers offering free shipping had an average order value of
 `R$ {primary['treatment_mean_aov']}`, versus `R$ {primary['control_mean_aov']}` for sellers on standard
 shipping. That's a lift of **`R$ {lift}`** (95% confidence interval: `R$ {ci_low}` to
-`R$ {ci_high}`). This interval does not include zero, so the lift is unlikely
-to be due to chance.
+`R$ {ci_high}`). {significance_sentence}
 
 ## Complaint rate check (guardrail)
 
@@ -81,7 +120,7 @@ pre-agreed that anything under {margin:.1f} points was acceptable. {"This crosse
 
 ## Bottom line
 
-{verdict_text}
+{next_step(primary, guardrail, verdict)}
 """
     return memo
 

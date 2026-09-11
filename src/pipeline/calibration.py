@@ -37,7 +37,7 @@ def load():
     return orders, items, reviews, products, translation
 
 
-def build_order_table(orders, items, reviews, products, translation):
+def build_order_table(orders, items, reviews, products, translation, stats_out=None):
     orders = orders[orders["order_status"] == "delivered"].copy()
 
     order_value = items.groupby("order_id")["price"].sum().rename("aov")
@@ -53,6 +53,23 @@ def build_order_table(orders, items, reviews, products, translation):
         .agg(lambda s: s.mode().iloc[0] if not s.mode().empty else np.nan)
         .rename("category")
     )
+
+    # Olist orders can legitimately contain items from more than one seller.
+    # Attributing an order's seller from a single item (rather than, e.g.,
+    # the seller with the largest share of the order's value) is a real
+    # simplification on real, non-simulated calibration data: multi-seller
+    # orders get silently folded into whichever seller happened to log the
+    # lowest order_item_id, which slightly understates each such seller's
+    # true per-seller AOV variance. It's a small effect at this dataset's
+    # scale, but it is a genuine distortion, not just an implementation
+    # detail, so it's called out here rather than left implicit.
+    order_seller_counts = items.groupby("order_id")["seller_id"].nunique()
+    n_multi_seller_orders = int((order_seller_counts > 1).sum())
+    if stats_out is not None:
+        stats_out["n_multi_seller_orders"] = n_multi_seller_orders
+        stats_out["n_multi_seller_orders_pct"] = round(
+            100 * n_multi_seller_orders / len(order_seller_counts), 3
+        )
 
     seller_of_order = (
         items.sort_values("order_item_id")
@@ -138,8 +155,12 @@ def calibrate(table):
 
 def main():
     orders, items, reviews, products, translation = load()
-    table = build_order_table(orders, items, reviews, products, translation)
+    data_quality_notes = {}
+    table = build_order_table(
+        orders, items, reviews, products, translation, stats_out=data_quality_notes
+    )
     calibration = calibrate(table)
+    calibration["data_quality_notes"] = data_quality_notes
 
     out_path = OUT / "calibration_params.json"
     with open(out_path, "w") as f:
@@ -150,6 +171,11 @@ def main():
     print(f"Overall AOV mean/std: {calibration['overall']['aov_mean']} / "
           f"{calibration['overall']['aov_std']}")
     print(f"Overall complaint rate: {calibration['overall']['complaint_rate']}")
+    print(
+        f"Multi-seller orders (seller attributed to lowest order_item_id): "
+        f"{data_quality_notes['n_multi_seller_orders']} "
+        f"({data_quality_notes['n_multi_seller_orders_pct']}%)"
+    )
     print(f"Seller-level AOV std (between-seller): "
           f"{calibration['seller_level']['seller_level_aov_std']}")
     print(f"Median orders per seller: "

@@ -11,17 +11,18 @@ runs against real, unrandomized orders.
 
 ## Preview
 
-<p align="center">
-  <img src="docs/screenshots/ui-landing.png" width="720" alt="Streamlit dashboard showing the GO verdict banner and three headline metrics: AOV lift, guardrail status, and sample size">
-  <br>
-  <sub><em>Landing view: verdict and headline metrics are visible immediately, no tab click required.</em></sub>
-</p>
+Screenshots aren't committed to this repo yet. Run the dashboard locally
+(`streamlit run dashboard/app.py` after the pipeline has populated
+`results/`) to see it live:
 
-<p align="center">
-  <img src="docs/screenshots/ui-results.png" width="720" alt="Simulated Results tab showing order value and complaint rate bar charts by arm, with a non-inferiority ceiling line">
-  <br>
-  <sub><em>Simulated Results tab: order value and guardrail charts, with the preregistered non-inferiority ceiling drawn in.</em></sub>
-</p>
+- **Landing view** — the GO/NO-GO verdict banner and three headline metrics
+  (AOV lift, guardrail status, sample size) are visible immediately, no tab
+  click required.
+- **Simulated Results tab** — order value and guardrail bar charts by arm,
+  with the preregistered non-inferiority ceiling drawn in.
+
+If you add screenshots later, drop them in `docs/screenshots/` and link
+them here as `ui-landing.png` / `ui-results.png`.
 
 ## What this is
 

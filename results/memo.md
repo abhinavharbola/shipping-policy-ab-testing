@@ -14,10 +14,9 @@ whether it made delivery complaints worse.
 ## Order value result
 
 Sellers offering free shipping had an average order value of
-R\$ 171.13, versus R\$ 139.54 for sellers on standard
-shipping. That's a lift of **R\$ 31.59** (95% confidence interval: R\$ 24.1 to
-R\$ 39.09). This interval does not include zero, so the lift is unlikely
-to be due to chance.
+`R$ 171.13`, versus `R$ 139.54` for sellers on standard
+shipping. That's a lift of **`R$ 31.59`** (95% confidence interval: `R$ 24.1` to
+`R$ 39.09`). This interval does not include zero, so the lift is unlikely to be due to chance.
 
 ## Complaint rate check (guardrail)
 
@@ -27,4 +26,4 @@ pre-agreed that anything under 2.0 points was acceptable. This stayed within tha
 
 ## Bottom line
 
-Roll out free shipping. It raises average order value by a statistically clear margin, and the complaint rate did not cross the line we set in advance.
+Ship the change, then keep watching the complaint rate for at least one full cycle after rollout. The guardrail held in this trial; it still needs to hold outside it.
