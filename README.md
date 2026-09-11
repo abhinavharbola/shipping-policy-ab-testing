@@ -80,6 +80,9 @@ flowchart TD
     memo --> dash
 ```
 
+Full section-by-section design rationale, written and locked before any of
+this ran: [`PREREGISTRATION.md`](PREREGISTRATION.md).
+
 ## Design decisions
 
 | Decision | Choice | Why |
@@ -140,16 +143,18 @@ to calibration.
 ```
 .
 ├── README.md
-├── PREREGISTRATION.md          # locked design doc, see build-order proof above
-├── LICENSE
-├── pyproject.toml              # sole source of dependency truth, package metadata
+├── PREREGISTRATION.md           # locked design doc, see build-order proof above
+├── pyproject.toml               # sole source of dependency truth, package metadata
 ├── .gitignore
-├── .streamlit/config.toml      # dashboard theme
-├── assets/favicon.png
+│
+├── .streamlit/config.toml       # dashboard theme
+│
+├── assets/
 ├── data/
-│   ├── raw/                    # you supply the Olist CSVs here, gitignored
-│   ├── calibration/            # calibration_params.json, committed
+│   ├── raw/                     # you supply the Olist CSVs here, gitignored
+│   ├── calibration/             # calibration_params.json, committed
 │   └── simulated/               # regenerable from the seed; true_effects.json committed
+│
 ├── src/
 │   ├── design/                  # runs BEFORE any experimental data exists
 │   │   ├── calibration.py       # step 0.5
@@ -159,11 +164,12 @@ to calibration.
 │       ├── randomize.py         # step 5
 │       ├── analyze.py           # step 6
 │       └── reporting.py         # step 7
-├── dashboard/app.py            # live results, Streamlit
-├── results/                    # power analysis, analysis results, memo, committed
-├── scripts/run_pipeline.py     # runs the pipeline steps in order
-├── docs/screenshots/           # README preview images
-└── tests/                      # see Evaluation below
+│
+├── dashboard/app.py             # live results, Streamlit
+├── results/                     # power analysis, analysis results, memo, committed
+│
+├── scripts/run_pipeline.py      # runs the pipeline steps in order
+└── tests/                       # see Evaluation below
 ```
 
 `design/` and `experiment/` are two separate top-level packages under `src/`,
@@ -246,11 +252,12 @@ committed; the pipeline never regenerates it.
 
 23/23 passing, `pyflakes` clean.
 
-## Ground-truth recovery, with the actual numbers
-
-The simulated population has a true injected AOV lift of R$28.00 and a true
-injected complaint-rate increase of 1.2 percentage points. The preregistered
-analysis, run once on the full sample, recovered:
+This is the headline result: the simulated population has a true injected
+AOV lift of R$28.00 and a true injected complaint-rate increase of 1.2
+percentage points, and `test_recovery_check_catches_bugs.py` confirms the
+recovery check can actually detect a wrong answer rather than passing by
+construction. On the committed run, the preregistered analysis recovered
+both:
 
 | | Point estimate | 95% CI | True value | Recovered? |
 |---|---|---|---|---|
@@ -259,7 +266,7 @@ analysis, run once on the full sample, recovered:
 
 Both intervals contain their true injected value, and the guardrail correctly
 did not breach the 2.0-point margin. This is one seeded run, not proof the
-method generalizes to every possible effect; see limitations below.
+method generalizes to every possible effect - see limitations below.
 
 ## Known limitations
 

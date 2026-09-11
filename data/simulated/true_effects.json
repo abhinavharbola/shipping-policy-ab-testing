@@ -1,7 +1,7 @@
 {
   "seed": 20260904,
-  "n_sellers": 5006,
-  "n_per_arm": 2503,
+  "n_sellers": 4998,
+  "n_per_arm": 2499,
   "true_aov_lift_absolute": 28.0,
   "true_complaint_lift_absolute": 0.012,
   "note": "Ground truth for the recovery check in analyze.py. Kept separate from randomize.py's output; randomize.py and analyze.py never read this file or the *_control/*_treatment potential-outcome columns together."
