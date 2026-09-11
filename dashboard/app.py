@@ -297,7 +297,7 @@ with tab_results:
                 yaxis=dict(gridcolor=GRID),
                 height=340, margin=dict(t=20, b=20, l=40, r=20),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         with col2:
             st.markdown("**Complaint rate by arm**")
@@ -328,7 +328,7 @@ with tab_results:
                 yaxis=dict(gridcolor=GRID, range=[0, max(ceiling_value, max_bar) * 1.18]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width='stretch')
 
         with st.expander("View raw analysis output (JSON)"):
             st.json(results, expanded=True)
@@ -361,7 +361,7 @@ with tab_recovery:
                 "Recovered": "Yes" if r["guardrail_recovered"] else "No",
             },
         ])
-        st.dataframe(rec_df, use_container_width=True, hide_index=True)
+        st.dataframe(rec_df, width='stretch', hide_index=True)
 
         st.caption(
             "A confidence interval is expected to miss the true value roughly 5% of the "
