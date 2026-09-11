@@ -7,7 +7,7 @@ pooled order-level complaints (guardrail). Nothing else, and nothing
 added after seeing the result.
 
 `analyze()` is the only function that touches experimental data, and it
-reads only src/data/simulated/assigned_experiment.csv, which contains no
+reads only data/simulated/assigned_experiment.csv, which contains no
 counterfactual columns and no true-effect information (see randomize.py).
 It also refuses to run on anything but the full pre-specified sample,
 enforcing the fixed-horizon stopping rule from PREREGISTRATION.md
@@ -15,7 +15,7 @@ section 6.
 
 The ground-truth recovery check is deliberately kept OUTSIDE analyze():
 it is the only piece of code in this file allowed to read
-src/data/simulated/true_effects.json, and it runs after analyze() has
+data/simulated/true_effects.json, and it runs after analyze() has
 already produced its result, using analyze()'s output as a black box.
 This ordering is what tests/test_no_raw_data_leak.py checks.
 """
@@ -29,10 +29,10 @@ from scipy import stats
 from statsmodels.stats.proportion import proportions_ztest
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC_DATA = Path(__file__).resolve().parents[1] / "data"
-ASSIGNED_PATH = SRC_DATA / "simulated" / "assigned_experiment.csv"
+DATA = ROOT / "data"
+ASSIGNED_PATH = DATA / "simulated" / "assigned_experiment.csv"
 POWER_PATH = ROOT / "results" / "power_analysis.json"
-TRUE_EFFECTS_PATH = SRC_DATA / "simulated" / "true_effects.json"
+TRUE_EFFECTS_PATH = DATA / "simulated" / "true_effects.json"
 RESULTS_PATH = ROOT / "results" / "analysis_results.json"
 RECOVERY_PATH = ROOT / "results" / "recovery_check.json"
 

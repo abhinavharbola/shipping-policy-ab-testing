@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pipeline import analyze  # noqa: E402
+from experiment import analyze  # noqa: E402
 
 
 def make_experiment_df(n_treatment, n_control, orders_per_seller=5, seed=0):

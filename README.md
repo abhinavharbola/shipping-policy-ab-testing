@@ -120,11 +120,13 @@ flowchart TD
   `calibration.py` for descriptive statistics: category-level order-value
   distributions and baseline complaint rates. No hypothesis test in this
   project runs against this data.
-- **`src/data/calibration/`** `calibration_params.json`, committed. The only
+- **`data/calibration/`** `calibration_params.json`, committed. The only
   bridge between real data and the simulation: category weights, AOV
   mean/std, baseline complaint rate.
-- **`src/data/simulated/`** the synthetic population and randomized
-  assignment, regenerable deterministically from a fixed seed, gitignored.
+- **`data/simulated/`** the synthetic population and randomized
+  assignment, regenerable deterministically from a fixed seed, gitignored
+  (except `true_effects.json`, which is committed - it's small, and the
+  ground-truth recovery check needs it even in a fresh checkout).
 - **`results/`** power analysis, analysis results, recovery check, and memo,
   committed.
 
@@ -137,18 +139,22 @@ to calibration.
 
 ```
 .
+├── README.md
 ├── PREREGISTRATION.md          # locked design doc, see build-order proof above
-├── pyproject.toml              # package metadata, dependencies, console scripts
-├── requirements.txt            # plain pip install if you don't want the package
+├── LICENSE
+├── pyproject.toml              # sole source of dependency truth, package metadata
+├── .gitignore
+├── .streamlit/config.toml      # dashboard theme
+├── assets/favicon.png
 ├── data/
-│   └── raw/                    # you supply the Olist CSVs here, gitignored
+│   ├── raw/                    # you supply the Olist CSVs here, gitignored
+│   ├── calibration/            # calibration_params.json, committed
+│   └── simulated/               # regenerable from the seed; true_effects.json committed
 ├── src/
-│   ├── data/
-│   │   ├── calibration/        # calibration_params.json, committed
-│   │   └── simulated/          # regenerable from the seed, gitignored
-│   └── pipeline/                # the pipeline code, as an installable package
-│       ├── calibration.py       # step 0.5
-│       ├── power_analysis.py    # step 1-2
+│   ├── design/                  # runs BEFORE any experimental data exists
+│   │   ├── calibration.py       # step 0.5
+│   │   └── power_analysis.py    # step 1-2
+│   └── experiment/              # runs AFTER the design is locked
 │       ├── simulate.py          # step 4
 │       ├── randomize.py         # step 5
 │       ├── analyze.py           # step 6
@@ -160,9 +166,15 @@ to calibration.
 └── tests/                      # see Evaluation below
 ```
 
+`design/` and `experiment/` are two separate top-level packages under `src/`,
+not one package with subpackages - the split mirrors the project's actual
+thesis: everything in `design/` is what gets locked into
+`PREREGISTRATION.md` before any simulated data exists; everything in
+`experiment/` runs after that commit and never modifies it.
+
 ## Getting started
 
-1. **Data.** `src/data/calibration/calibration_params.json` is already
+1. **Data.** `data/calibration/calibration_params.json` is already
    committed, so you don't need the raw CSVs to run anything past
    calibration. To re-derive calibration from scratch, download the
    [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)
@@ -170,24 +182,39 @@ to calibration.
    `olist_order_reviews_dataset.csv`, `olist_products_dataset.csv`, and
    `product_category_name_translation.csv` in `data/raw/`.
 
-2. **Install**
+2. **Set up a virtual environment and install dependencies**
    ```bash
-   pip install -e ".[dashboard,dev]"
+   python3 -m venv .venv
+   source .venv/bin/activate        # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
    ```
-   Installs the `pipeline` package, six console commands
+   This is enough to run everything below - `scripts/run_pipeline.py`,
+   `dashboard/app.py`, and `pytest` all add `src/` to `sys.path`
+   themselves, so `design` and `experiment` are importable without
+   installing this project as a package.
+
+   If you also want the six `shipping-*` console commands
    (`shipping-calibrate`, `shipping-power`, `shipping-simulate`,
-   `shipping-randomize`, `shipping-analyze`, `shipping-report`), the
-   dashboard's dependencies, and pytest. If you'd rather not install it as a
-   package, `pip install -r requirements.txt` and call each module directly
-   instead (`python3 -m pipeline.calibration`, etc.); both approaches run the
-   exact same code.
+   `shipping-randomize`, `shipping-analyze`, `shipping-report`) or to run
+   a module directly with `python3 -m design.calibration` from outside
+   the repo root, install the project itself on top of the same venv:
+   ```bash
+   pip install -e . --no-deps
+   ```
+   `--no-deps` skips reinstalling dependencies `requirements.txt` already
+   installed; this just registers the package so its entry points and
+   import path work from anywhere. (`pip install -e ".[dashboard,dev]"`
+   on its own, without `requirements.txt` first, also works and pulls
+   the same dependencies from `pyproject.toml` - use whichever manifest
+   you'd rather maintain. `requirements.txt` is kept in sync with
+   `pyproject.toml` by hand; see the comment at the top of that file.)
 
 ## Running it
 
 ```bash
 python3 scripts/run_pipeline.py   # calibrate -> power -> simulate -> randomize -> analyze -> report
 streamlit run dashboard/app.py    # live results dashboard
-python3 -m pytest tests/          # 20 tests, see Evaluation below
+python3 -m pytest tests/          # 23 tests, see Evaluation below
 ```
 
 `scripts/run_pipeline.py` doesn't require `pip install -e .` first (it puts
@@ -217,7 +244,7 @@ committed; the pipeline never regenerates it.
   characters as LaTeX math, which silently broke the memo's currency
   formatting.
 
-20/20 passing, `pyflakes` clean.
+23/23 passing, `pyflakes` clean.
 
 ## Ground-truth recovery, with the actual numbers
 

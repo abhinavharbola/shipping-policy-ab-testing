@@ -1,7 +1,7 @@
 """
 Step 2: Power analysis and minimum detectable effect.
 
-Reads ONLY src/data/calibration/calibration_params.json (real-data-derived
+Reads ONLY data/calibration/calibration_params.json (real-data-derived
 baseline mean/variance/rate). It must never read simulated data, because
 that data does not exist yet at this point in the project. Output is
 written to results/power_analysis.json, and PREREGISTRATION.md quotes
@@ -24,8 +24,8 @@ from statsmodels.stats.power import NormalIndPower, TTestIndPower
 from statsmodels.stats.proportion import proportion_effectsize
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC_DATA = Path(__file__).resolve().parents[1] / "data"
-CALIB_PATH = SRC_DATA / "calibration" / "calibration_params.json"
+DATA = ROOT / "data"
+CALIB_PATH = DATA / "calibration" / "calibration_params.json"
 OUT_PATH = ROOT / "results" / "power_analysis.json"
 
 ALPHA = 0.05

@@ -19,13 +19,12 @@ dashboard = ["streamlit", "plotly"]
 dev = ["pytest", "pyflakes"]
 
 [project.scripts]
-shipping-calibrate = "pipeline.calibration:main"
-shipping-power = "pipeline.power_analysis:main"
-shipping-simulate = "pipeline.simulate:main"
-shipping-randomize = "pipeline.randomize:main"
-shipping-analyze = "pipeline.analyze:main"
-shipping-report = "pipeline.reporting:main"
+shipping-calibrate = "design.calibration:main"
+shipping-power = "design.power_analysis:main"
+shipping-simulate = "experiment.simulate:main"
+shipping-randomize = "experiment.randomize:main"
+shipping-analyze = "experiment.analyze:main"
+shipping-report = "experiment.reporting:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-exclude = ["data*"]

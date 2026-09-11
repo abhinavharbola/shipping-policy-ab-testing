@@ -19,9 +19,9 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC_DATA = Path(__file__).resolve().parents[1] / "data"
-RAW = ROOT / "data" / "raw"
-OUT = SRC_DATA / "calibration"
+DATA = ROOT / "data"
+RAW = DATA / "raw"
+OUT = DATA / "calibration"
 OUT.mkdir(parents=True, exist_ok=True)
 
 COMPLAINT_THRESHOLD = 2  # review_score <= 2 counts as a delivery complaint

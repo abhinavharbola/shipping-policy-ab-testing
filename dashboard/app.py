@@ -13,7 +13,7 @@ click required. The "Preregistered Design" tab keeps only a compact
 summary visible by default and tucks the full document into an
 expander, so it isn't dramatically heavier than the other three tabs.
 
-The verdict shown here is computed by calling `pipeline.reporting`'s
+The verdict shown here is computed by calling `experiment.reporting`'s
 `recommendation()` directly on the already-computed analysis output,
 not by re-parsing the rendered memo.md text. That keeps "exactly one
 place the decision gets made" true without depending on the memo's
@@ -42,7 +42,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from pipeline.reporting import next_step, recommendation  # noqa: E402
+from experiment.reporting import next_step, recommendation  # noqa: E402
 
 # page_icon must be a real file, an emoji, or None. Fall back instead of
 # crashing on startup if assets/favicon.png hasn't been added to the repo.
@@ -259,7 +259,7 @@ with tab_design:
 
 with tab_results:
     if not has_results:
-        st.info("Run `shipping-analyze` (or `python3 -m pipeline.analyze`) to populate this tab.")
+        st.info("Run `shipping-analyze` (or `python3 -m experiment.analyze`) to populate this tab.")
     else:
         p = results["primary"]
         g = results["guardrail"]
@@ -335,7 +335,7 @@ with tab_results:
 
 with tab_recovery:
     if not has_results:
-        st.info("Run `shipping-analyze` (or `python3 -m pipeline.analyze`) to populate this tab.")
+        st.info("Run `shipping-analyze` (or `python3 -m experiment.analyze`) to populate this tab.")
     else:
         r = recovery
         both_ok = r["both_recovered"]
@@ -372,7 +372,7 @@ with tab_recovery:
 
 with tab_memo:
     if not has_results:
-        st.info("Run `shipping-report` (or `python3 -m pipeline.reporting`) to populate this tab.")
+        st.info("Run `shipping-report` (or `python3 -m experiment.reporting`) to populate this tab.")
     else:
         p = results["primary"]
         g = results["guardrail"]

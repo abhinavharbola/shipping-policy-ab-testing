@@ -20,9 +20,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-SRC_DATA = Path(__file__).resolve().parents[1] / "data"
-IN_POPULATION = SRC_DATA / "simulated" / "population_potential_outcomes.csv"
-OUT_ASSIGNED = SRC_DATA / "simulated" / "assigned_experiment.csv"
+DATA = Path(__file__).resolve().parents[2] / "data"
+IN_POPULATION = DATA / "simulated" / "population_potential_outcomes.csv"
+OUT_ASSIGNED = DATA / "simulated" / "assigned_experiment.csv"
 
 RANDOMIZATION_SEED = 71  # implementation detail; not tuned
 

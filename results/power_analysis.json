@@ -5,28 +5,28 @@
     "test": "Welch's t-test (two independent means, unequal variance)",
     "unit_of_analysis": "seller (mean AOV across that seller's orders)",
     "mde_absolute_brl": 25.0,
-    "baseline_seller_level_aov_std": 315.58,
-    "cohens_d": 0.0792,
+    "baseline_seller_level_aov_std": 315.37,
+    "cohens_d": 0.0793,
     "alpha": 0.05,
     "power_target": 0.8,
-    "required_n_per_arm_sellers": 2503
+    "required_n_per_arm_sellers": 2499
   },
   "guardrail": {
     "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower); note the planned analysis test itself is one-sided (non-inferiority), see PREREGISTRATION.md, so this two-sided sizing is a conservative (not undersized) planning approximation",
     "unit_for_sizing": "order (pooled within arm)",
-    "baseline_complaint_rate": 0.1276,
+    "baseline_complaint_rate": 0.1311,
     "non_inferiority_margin_absolute": 0.02,
-    "worst_tolerable_complaint_rate": 0.1476,
-    "effect_size_h": 0.0581,
+    "worst_tolerable_complaint_rate": 0.1511,
+    "effect_size_h": 0.0575,
     "alpha": 0.05,
     "power_target": 0.8,
-    "required_n_per_arm_orders": 4652,
-    "orders_per_seller_used_for_conversion": 32.83,
-    "required_n_per_arm_sellers_equivalent": 142
+    "required_n_per_arm_orders": 4751,
+    "orders_per_seller_used_for_conversion": 32.78,
+    "required_n_per_arm_sellers_equivalent": 145
   },
   "binding_constraint": "primary (AOV)",
-  "required_n_per_arm": 2503,
-  "required_total_sellers": 5006,
-  "context_real_sellers_in_scope": 2831,
-  "context_note": "The design requires 2503 sellers per arm (5006 total). The Olist calibration data contains 2831 sellers in scope. This is reported as context, not as a cap: the analysis population is simulated, so it is sized to what the design requires, not to what one historical snapshot of Olist happened to contain. If the required N could not be reached with real sellers, that would be a real-world feasibility problem for whoever runs this test live, worth flagging to stakeholders, but it does not change what the statistics require."
+  "required_n_per_arm": 2499,
+  "required_total_sellers": 4998,
+  "context_real_sellers_in_scope": 2836,
+  "context_note": "The design requires 2499 sellers per arm (4998 total). The Olist calibration data contains 2836 sellers in scope. This is reported as context, not as a cap: the analysis population is simulated, so it is sized to what the design requires, not to what one historical snapshot of Olist happened to contain. If the required N could not be reached with real sellers, that would be a real-world feasibility problem for whoever runs this test live, worth flagging to stakeholders, but it does not change what the statistics require."
 }

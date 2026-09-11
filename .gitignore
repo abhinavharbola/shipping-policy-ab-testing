@@ -1,18 +1,34 @@
-# raw input data: user-supplied, not committed
-data/raw/*.csv
+# Raw Olist CSVs: not redistributable, user supplies their own.
+# See README "Getting started" for the download link.
+data/raw/*
+!data/raw/.gitkeep
 
-# simulated data: regenerable deterministically from the seed, not committed
-src/data/simulated/*.csv
-src/data/simulated/*.parquet
+# Regenerable simulated data: population_potential_outcomes.csv and
+# assigned_experiment.csv are deterministic outputs of simulate.py /
+# randomize.py (fixed seeds), not source data. true_effects.json is
+# small and committed on purpose (it's the ground truth the recovery
+# check needs even in a fresh checkout).
+data/simulated/*.csv
 
-# python
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.egg-info/
+.eggs/
 build/
 dist/
 .venv/
 venv/
 
-# test artifacts
+# Streamlit
+.streamlit/secrets.toml
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Test / tooling caches
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/

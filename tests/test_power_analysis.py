@@ -6,7 +6,7 @@ sanity checks on the calibrated MDE calculation itself.
 import pytest
 from statsmodels.stats.power import TTestIndPower
 
-from pipeline import power_analysis as mde_calculator
+from design import power_analysis as mde_calculator
 
 
 def test_ttest_power_matches_textbook_example():

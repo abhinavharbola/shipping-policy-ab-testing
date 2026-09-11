@@ -1,7 +1,19 @@
+# Mirrors pyproject.toml. Core pipeline deps + the dashboard and dev extras,
+# for anyone who wants a plain `pip install -r requirements.txt` instead of
+# `pip install -e ".[dashboard,dev]"`. Keep this in sync by hand if
+# pyproject.toml's [project.dependencies] or [project.optional-dependencies]
+# change - pip does not do that automatically.
+
+# core
 pandas
 numpy
 scipy
 statsmodels
+
+# dashboard extra
 streamlit
 plotly
+
+# dev extra
 pytest
+pyflakes

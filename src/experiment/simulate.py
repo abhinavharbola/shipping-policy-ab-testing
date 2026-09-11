@@ -18,11 +18,11 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC_DATA = Path(__file__).resolve().parents[1] / "data"
-CALIB_PATH = SRC_DATA / "calibration" / "calibration_params.json"
+DATA = ROOT / "data"
+CALIB_PATH = DATA / "calibration" / "calibration_params.json"
 POWER_PATH = ROOT / "results" / "power_analysis.json"
-OUT_POPULATION = SRC_DATA / "simulated" / "population_potential_outcomes.csv"
-OUT_TRUE_EFFECTS = SRC_DATA / "simulated" / "true_effects.json"
+OUT_POPULATION = DATA / "simulated" / "population_potential_outcomes.csv"
+OUT_TRUE_EFFECTS = DATA / "simulated" / "true_effects.json"
 
 SIM_SEED = 20260904
 

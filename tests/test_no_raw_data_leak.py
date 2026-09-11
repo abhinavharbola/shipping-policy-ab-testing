@@ -9,7 +9,7 @@ analyze() has already returned).
 import ast
 from pathlib import Path
 
-PACKAGE_DIR = Path(__file__).resolve().parent.parent / "src" / "pipeline"
+PACKAGE_DIR = Path(__file__).resolve().parent.parent / "src" / "experiment"
 
 
 def _source(filename):

@@ -14,7 +14,7 @@ backtick-delimited span.
 
 import re
 
-from pipeline import reporting
+from experiment import reporting
 
 
 def make_fake_results():

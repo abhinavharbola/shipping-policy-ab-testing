@@ -20,7 +20,8 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from pipeline import analyze, calibration, power_analysis, randomize, reporting, simulate
+from design import calibration, power_analysis
+from experiment import analyze, randomize, reporting, simulate
 
 STEPS = [
     ("[1/6] Calibrating simulation parameters from real Olist data", calibration.main),

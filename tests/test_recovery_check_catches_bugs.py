@@ -8,7 +8,7 @@ and confirms the recovery assertion catches both.
 import numpy as np
 import pandas as pd
 
-from pipeline import analyze  # noqa: E402
+from experiment import analyze  # noqa: E402
 
 
 def make_experiment_df(n_per_arm, true_lift, seed=0):
