@@ -6,3 +6,5 @@
   "true_complaint_lift_absolute": 0.012,
   "note": "Ground truth for the recovery check in analyze.py. Kept separate from randomize.py's output; randomize.py and analyze.py never read this file or the *_control/*_treatment potential-outcome columns together."
 }
+
+

@@ -108,3 +108,6 @@ def test_bottom_line_is_not_a_verbatim_repeat_of_the_recommendation():
     )
     bottom_line = memo.split("## Bottom line")[1].strip()
     assert bottom_line != verdict_text
+
+
+

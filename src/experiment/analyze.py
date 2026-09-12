@@ -1,7 +1,7 @@
 """
 Step 6: analyze.
 
-Runs exactly the tests specified in PREREGISTRATION.md: Welch's t-test
+Runs exactly the tests specified in docs/PREREGISTRATION.md: Welch's t-test
 on seller-level mean AOV (primary), one-sided two-proportion z-test on
 pooled order-level complaints (guardrail). Nothing else, and nothing
 added after seeing the result.
@@ -10,7 +10,7 @@ added after seeing the result.
 reads only data/simulated/assigned_experiment.csv, which contains no
 counterfactual columns and no true-effect information (see randomize.py).
 It also refuses to run on anything but the full pre-specified sample,
-enforcing the fixed-horizon stopping rule from PREREGISTRATION.md
+enforcing the fixed-horizon stopping rule from docs/PREREGISTRATION.md
 section 6.
 
 The ground-truth recovery check is deliberately kept OUTSIDE analyze():
@@ -64,7 +64,7 @@ def analyze(experiment_df, expected_n_per_arm=None):
                 f"Expected exactly {expected_n_per_arm} sellers in arm '{arm}' "
                 f"per the preregistered fixed-horizon design; got "
                 f"{seller_counts.get(arm, 0)}. Analysis refuses to run on a "
-                "partial or over-accrued sample. See PREREGISTRATION.md section 6."
+                "partial or over-accrued sample. See docs/PREREGISTRATION.md section 6."
             )
 
     primary = _analyze_primary(experiment_df)
@@ -138,7 +138,7 @@ def _analyze_guardrail(experiment_df):
 
     return {
         "test": "one-sided two-proportion z-test (treatment > control), pooled order-level counts",
-        "unit_for_test": "order (documented clustering simplification, see PREREGISTRATION.md section 8)",
+        "unit_for_test": "order (documented clustering simplification, see docs/PREREGISTRATION.md section 8)",
         "n_treatment_orders": int(nobs[0]),
         "n_control_orders": int(nobs[1]),
         "treatment_complaint_rate": round(float(p_treatment), 4),
@@ -200,3 +200,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

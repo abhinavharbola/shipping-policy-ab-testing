@@ -3,11 +3,6 @@
 data/raw/*
 !data/raw/.gitkeep
 
-# Regenerable simulated data: population_potential_outcomes.csv and
-# assigned_experiment.csv are deterministic outputs of simulate.py /
-# randomize.py (fixed seeds), not source data. true_effects.json is
-# small and committed on purpose (it's the ground truth the recovery
-# check needs even in a fresh checkout).
 data/simulated/*.csv
 
 # Python

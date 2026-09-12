@@ -2,14 +2,14 @@
 Runs the full experiment pipeline in order:
     calibrate -> power analysis -> simulate -> randomize -> analyze -> report
 
-PREREGISTRATION.md is intentionally not touched by this script; it is a
+docs/PREREGISTRATION.md is intentionally not touched by this script; it is a
 locked document, written and committed before any of these steps
 existed, and stays that way (see README.md "build-order proof").
 
 Usage: python3 scripts/run_pipeline.py [--recalibrate]
 
-Works with or without 'pip install -e .' first: it puts src/ on
-sys.path itself, and runs correctly from any working directory.
+No package install needed (there is no pyproject.toml): it puts src/
+on sys.path itself, and runs correctly from any working directory.
 
 Calibration is skipped by default when data/calibration/calibration_params.json
 already exists, since that file is committed to the repo and the README
@@ -67,3 +67,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

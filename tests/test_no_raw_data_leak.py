@@ -1,5 +1,5 @@
 """
-Enforces the dataset-role rule from PREREGISTRATION.md / README in code:
+Enforces the dataset-role rule from docs/PREREGISTRATION.md / README in code:
 no function in analyze.py or reporting.py may ever receive raw Olist
 data as input, and analyze() specifically must never read
 true_effects.json (only check_ground_truth_recovery may, and only after
@@ -106,3 +106,6 @@ def test_check_ground_truth_recovery_is_the_sole_reader_of_true_effects():
             if "TRUE_EFFECTS_PATH" in names_used:
                 functions_referencing_true_effects.append(node.name)
     assert functions_referencing_true_effects == ["check_ground_truth_recovery"]
+
+
+

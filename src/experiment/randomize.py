@@ -1,7 +1,7 @@
 """
 Step 5: randomize.
 
-Performs the simple random assignment specified in PREREGISTRATION.md
+Performs the simple random assignment specified in docs/PREREGISTRATION.md
 section 5 (not stratified, 1:1 by seller). Reveals exactly one potential
 outcome per seller and writes ONLY that revealed value; the counterfactual
 columns from simulate.py are dropped here and never written to
@@ -10,7 +10,7 @@ not be able to see or influence the values already committed" true by
 construction, not by convention: the file analyze.py loads physically
 does not contain the other arm's outcome or the true effect size.
 
-Seed is an implementation detail (see PREREGISTRATION.md section 5), not
+Seed is an implementation detail (see docs/PREREGISTRATION.md section 5), not
 a design decision: it is fixed here for reproducibility of this specific
 run, not chosen to produce a favorable split.
 """
@@ -77,3 +77,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

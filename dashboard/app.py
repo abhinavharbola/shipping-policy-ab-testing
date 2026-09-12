@@ -369,7 +369,7 @@ randomize_done = exists("data/simulated/assigned_experiment.csv")
 analyze_done = exists("results/analysis_results.json")
 report_done = exists("results/memo.md")
 
-prereg_text = load_text("PREREGISTRATION.md") if exists("PREREGISTRATION.md") else None
+prereg_text = load_text("docs/PREREGISTRATION.md") if exists("docs/PREREGISTRATION.md") else None
 power = load_json("results/power_analysis.json") if power_done else None
 
 has_results = analyze_done and report_done
@@ -499,8 +499,10 @@ elif not has_results:
             <div class="hero-reasoning">The preregistered design requires
             {power['required_n_per_arm']:,} sellers per arm
             ({power['required_total_sellers']:,} total). Run
-            <code>shipping-simulate</code>, <code>shipping-randomize</code>, and
-            <code>shipping-analyze</code> (or <code>scripts/run_pipeline.py</code>)
+            <code>scripts/run_pipeline.py</code> (or the individual
+            <code>python3 -m experiment.simulate</code>,
+            <code>python3 -m experiment.randomize</code>, and
+            <code>python3 -m experiment.analyze</code> steps)
             to populate the verdict and results below.</div>
         </div>
         """,
@@ -579,10 +581,10 @@ tab_design, tab_results, tab_recovery, tab_memo = st.tabs(
 
 with tab_design:
     if not power:
-        st.info("Run `shipping-power` (or `python3 -m design.power_analysis`) to populate this tab.")
+        st.info("Run `python3 -m design.power_analysis` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
         st.caption(
-            "Pulled directly from PREREGISTRATION.md and results/power_analysis.json, "
+            "Pulled directly from docs/PREREGISTRATION.md and results/power_analysis.json, "
             "the exact files committed to git before any simulation code was written."
         )
         stat_row([
@@ -601,7 +603,7 @@ with tab_design:
             f'<p class="stat-note" style="margin-top:0.9rem;">Real Olist sellers in scope for '
             f"comparison: {power['context_real_sellers_in_scope']:,}. The simulated population is "
             f"sized to what the design requires, not to this historical count - see "
-            f'PREREGISTRATION.md for the reasoning.</p>',
+            f'docs/PREREGISTRATION.md for the reasoning.</p>',
             unsafe_allow_html=True,
         )
 
@@ -610,7 +612,7 @@ with tab_design:
 
 with tab_results:
     if not has_results or not power:
-        st.info("Run `shipping-analyze` (or `python3 -m experiment.analyze`) to populate this tab.")
+        st.info("Run `python3 -m experiment.analyze` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
         p = results["primary"]
         g = results["guardrail"]
@@ -692,7 +694,7 @@ with tab_results:
 
 with tab_recovery:
     if not has_results or not recovery:
-        st.info("Run `shipping-analyze` (or `python3 -m experiment.analyze`) to populate this tab.")
+        st.info("Run `python3 -m experiment.analyze` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
         r = recovery
         both_ok = r["both_recovered"]
@@ -779,7 +781,7 @@ with tab_recovery:
 
 with tab_memo:
     if not has_results:
-        st.info("Run `shipping-report` (or `python3 -m experiment.reporting`) to populate this tab.")
+        st.info("Run `python3 -m experiment.reporting` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
         p = results["primary"]
         g = results["guardrail"]
@@ -827,8 +829,10 @@ st.markdown(
     """
     <div class="app-footer">
         <span>Built with Streamlit, Plotly, statsmodels · calibrated from the Olist Brazilian E-Commerce dataset</span>
-        <span>See PREREGISTRATION.md for the full design rationale</span>
+        <span>See docs/PREREGISTRATION.md for the full design rationale</span>
     </div>
     """,
     unsafe_allow_html=True,
 )
+
+

@@ -48,8 +48,8 @@ on paper. A stricter, margin-adjusted threshold would raise this bar
 further; BRL 25 is treated as a floor, not an ideal target.
 
 **Guardrail non-inferiority margin: 2.0 percentage points absolute**,
-against a calibrated baseline complaint rate of 13.11%. That is roughly
-a 15% relative increase, picked as the threshold past which the
+against a calibrated baseline complaint rate of 12.76%. That is roughly
+a 16% relative increase, picked as the threshold past which the
 seller-satisfaction cost plausibly outweighs the AOV gain, independent
 of what the AOV result shows.
 
@@ -61,16 +61,16 @@ output: `results/power_analysis.json`.
 | | Primary (AOV) | Guardrail (complaint rate) |
 |---|---|---|
 | Test used to size the study | Welch's t-test → `TTestIndPower` | Two-proportion z-test → `NormalIndPower` (conservative stand-in; planned analysis test is one-sided, see §6) |
-| Baseline variability | seller-level AOV std = 315.37 | baseline rate = 13.11% |
-| Effect size | Cohen's d = 0.0793 | h = 0.0575 |
+| Baseline variability | seller-level AOV std = 315.58 | baseline rate = 12.76% |
+| Effect size | Cohen's d = 0.0792 | h = 0.0581 |
 | alpha | 0.05 | 0.05 |
 | power | 0.80 | 0.80 |
-| Required N per arm | 2,499 sellers | 4,751 orders → 145 sellers-equivalent (at 32.78 orders/seller) |
+| Required N per arm | 2,503 sellers | 4,652 orders → 142 sellers-equivalent (at 32.83 orders/seller) |
 
 **Binding constraint: the primary AOV test.** It requires more sellers
 per arm than the guardrail does, so the experiment is powered to
-**2,499 sellers per arm (4,998 total)**. This is compared, not capped,
-against the 2,836 sellers present in the Olist calibration data: the
+**2,503 sellers per arm (5,006 total)**. This is compared, not capped,
+against the 2,831 sellers present in the Olist calibration data: the
 simulated population is sized to what the design requires, not to a
 historical dataset's incidental scale. Nearly the entire real Olist
 seller base is smaller than what full power would need, which is a
@@ -148,3 +148,6 @@ This file is committed to git as its own commit before
 `simulate.py`, `randomize.py`, or `analyze.py` are written.
 The git log is the literal proof the design was fixed before the
 simulated data existed to fit it to.
+
+
+

@@ -87,3 +87,6 @@ def test_category_mix_is_roughly_similar_between_arms():
     ctrl_mix = revealed[revealed["arm"] == "control"]["category"].value_counts(normalize=True)
     for cat in ["a", "b", "c"]:
         assert abs(treat_mix[cat] - ctrl_mix[cat]) < 0.05
+
+
+

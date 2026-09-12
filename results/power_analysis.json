@@ -30,3 +30,5 @@
   "context_real_sellers_in_scope": 2831,
   "context_note": "The design requires 2503 sellers per arm (5006 total). The Olist calibration data contains 2831 sellers in scope. This is reported as context, not as a cap: the analysis population is simulated, so it is sized to what the design requires, not to what one historical snapshot of Olist happened to contain. If the required N could not be reached with real sellers, that would be a real-world feasibility problem for whoever runs this test live, worth flagging to stakeholders, but it does not change what the statistics require."
 }
+
+

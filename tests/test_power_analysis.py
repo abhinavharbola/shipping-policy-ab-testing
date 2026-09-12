@@ -44,3 +44,6 @@ def test_higher_baseline_variance_requires_more_sellers():
     high = mde_calculator.primary_power(calibration_high_std)
     # more baseline noise -> more sellers needed to detect the same MDE
     assert high["required_n_per_arm_sellers"] > low["required_n_per_arm_sellers"]
+
+
+

@@ -4,11 +4,11 @@ Step 2: Power analysis and minimum detectable effect.
 Reads ONLY data/calibration/calibration_params.json (real-data-derived
 baseline mean/variance/rate). It must never read simulated data, because
 that data does not exist yet at this point in the project. Output is
-written to results/power_analysis.json, and PREREGISTRATION.md quotes
+written to results/power_analysis.json, and docs/PREREGISTRATION.md quotes
 these numbers directly.
 
 Unit of analysis for both tests is the seller, matching the unit of
-randomization (see PREREGISTRATION.md for the SUTVA argument). The
+randomization (see docs/PREREGISTRATION.md for the SUTVA argument). The
 primary metric test is a Welch's t-test on each seller's mean AOV; the
 guardrail is planned as a proportions test, so its required N is
 computed in orders and then converted into an equivalent seller count
@@ -31,7 +31,7 @@ OUT_PATH = ROOT / "results" / "power_analysis.json"
 ALPHA = 0.05
 POWER_TARGET = 0.80
 
-# --- MDE choices, justified in prose below and quoted verbatim in PREREGISTRATION.md ---
+# --- MDE choices, justified in prose below and quoted verbatim in docs/PREREGISTRATION.md ---
 
 # Primary metric MDE: the mean freight value absorbed per order in the calibration
 # data is ~R$23. A shipping-policy change that does not lift average order value by
@@ -90,7 +90,7 @@ def guardrail_power(calibration):
     return {
         "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower); "
         "note the planned analysis test itself is one-sided (non-inferiority), "
-        "see PREREGISTRATION.md, so this two-sided sizing is a conservative "
+        "see docs/PREREGISTRATION.md, so this two-sided sizing is a conservative "
         "(not undersized) planning approximation",
         "unit_for_sizing": "order (pooled within arm)",
         "baseline_complaint_rate": p1,
@@ -159,3 +159,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

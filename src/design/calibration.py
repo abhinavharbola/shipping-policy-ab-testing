@@ -6,10 +6,10 @@ and variance, seller-level AOV variance, baseline complaint rate, and the
 distribution of orders per seller. Nothing here is a hypothesis test and
 nothing here touches a treatment/control split, because at this point in
 the project no such split exists yet. Output is a single JSON file that
-power_analysis.py reads to size the experiment, and PREREGISTRATION.md
+power_analysis.py reads to size the experiment, and docs/PREREGISTRATION.md
 quotes directly.
 
-Run this before writing PREREGISTRATION.md. Do not run it after.
+Run this before writing docs/PREREGISTRATION.md. Do not run it after.
 """
 
 import json
@@ -184,3 +184,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+

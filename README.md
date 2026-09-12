@@ -32,7 +32,7 @@ satisfaction), the project:
 1. Calibrates realistic simulation parameters from real Olist order data,
    descriptive statistics only, never a hypothesis test.
 2. Computes the required sample size from those calibration numbers alone,
-   and locks metric, MDE, and test choice into `PREREGISTRATION.md`,
+   and locks metric, MDE, and test choice into `docs/PREREGISTRATION.md`,
    committed to git before any simulation code exists.
 3. Simulates a population with a known, injected effect using potential
    outcomes, so a ground truth exists to check the analysis against.
@@ -59,10 +59,11 @@ just prose:
 `PREREGISTRATION.md` and the power analysis were committed in isolation
 *before* the simulation, randomization, or analysis code existed. Nothing in
 the design could have been fit to a result, because no result existed yet.
-Every commit after `70722c0` (documentation, a calibration bug fix, two repo
-restructurings) leaves `PREREGISTRATION.md` untouched, which
-`git show 7ba1f90:PREREGISTRATION.md` confirms against the current file at
-any time.
+Every commit after `70722c0` (documentation, a calibration bug fix, a move
+to `docs/PREREGISTRATION.md`, other repo restructurings) leaves the file's
+*content* untouched — `git log --follow` tracks it through the rename, and
+`git show 7ba1f90:PREREGISTRATION.md` (its path at that commit) still
+matches the current `docs/PREREGISTRATION.md` byte for byte.
 
 ## Pipeline
 
@@ -70,7 +71,7 @@ any time.
 flowchart TD
     raw[(data/raw\nOlist CSVs)] --> calib[calibration.py\ndescriptive stats only]
     calib --> power[power_analysis.py\nrequired N per arm]
-    power --> prereg[[PREREGISTRATION.md\ncommitted alone]]
+    power --> prereg[[docs/PREREGISTRATION.md\ncommitted alone]]
     prereg --> sim[simulate.py\npotential outcomes,\nknown injected effect]
     sim --> rand[randomize.py\nreveals one arm per seller]
     rand --> analyze{analyze.py\npreregistered tests only}
@@ -81,13 +82,13 @@ flowchart TD
 ```
 
 Full section-by-section design rationale, written and locked before any of
-this ran: [`PREREGISTRATION.md`](PREREGISTRATION.md).
+this ran: [`docs/PREREGISTRATION.md`](docs/PREREGISTRATION.md).
 
 ## Design decisions
 
 | Decision | Choice | Why |
 |---|---|---|
-| Primary metric | Mean per-seller AOV | Matches the unit of randomization; see `PREREGISTRATION.md` §2 |
+| Primary metric | Mean per-seller AOV | Matches the unit of randomization; see `docs/PREREGISTRATION.md` §2 |
 | Primary MDE | R$25 absolute lift | Grounded in the ~R$23 average freight cost a seller absorbs; a smaller lift can't cover its own cost |
 | Guardrail metric | Delivery-complaint rate (review score ≤ 2) | Prevents an AOV win from masking a satisfaction loss |
 | Guardrail margin | 2.0pp non-inferiority | ~15% relative increase; the threshold past which the satisfaction cost plausibly outweighs the AOV gain |
@@ -113,9 +114,9 @@ this ran: [`PREREGISTRATION.md`](PREREGISTRATION.md).
 - **Zero-leakage randomization.** `randomize.py` reveals exactly one
   potential outcome per seller and physically drops the counterfactual
   columns from the file `analyze.py` reads, asserted in code, not assumed.
-- **Immutable preregistration.** `PREREGISTRATION.md` is never edited after
+- **Immutable preregistration.** `docs/PREREGISTRATION.md` is never edited after
   its first commit; every later change to this project is diffed against
-  `git show 7ba1f90:PREREGISTRATION.md` before shipping.
+  `git show 7ba1f90:docs/PREREGISTRATION.md` before shipping.
 
 ## Data
 
@@ -143,9 +144,11 @@ to calibration.
 ```
 .
 ├── README.md
-├── PREREGISTRATION.md           # locked design doc, see build-order proof above
-├── pyproject.toml               # sole source of dependency truth, package metadata
+├── requirements.txt              # sole source of dependency truth
 ├── .gitignore
+│
+├── docs/
+│   └── PREREGISTRATION.md       # locked design doc, see build-order proof above
 │
 ├── .streamlit/config.toml       # dashboard theme
 │
@@ -175,7 +178,7 @@ to calibration.
 `design/` and `experiment/` are two separate top-level packages under `src/`,
 not one package with subpackages - the split mirrors the project's actual
 thesis: everything in `design/` is what gets locked into
-`PREREGISTRATION.md` before any simulated data exists; everything in
+`docs/PREREGISTRATION.md` before any simulated data exists; everything in
 `experiment/` runs after that commit and never modifies it.
 
 ## Getting started
@@ -197,23 +200,15 @@ thesis: everything in `design/` is what gets locked into
    This is enough to run everything below - `scripts/run_pipeline.py`,
    `dashboard/app.py`, and `pytest` all add `src/` to `sys.path`
    themselves, so `design` and `experiment` are importable without
-   installing this project as a package.
+   installing this project as a package. There is no `pyproject.toml`;
+   `requirements.txt` is the sole dependency manifest.
 
-   If you also want the six `shipping-*` console commands
-   (`shipping-calibrate`, `shipping-power`, `shipping-simulate`,
-   `shipping-randomize`, `shipping-analyze`, `shipping-report`) or to run
-   a module directly with `python3 -m design.calibration` from outside
-   the repo root, install the project itself on top of the same venv:
+   To run a module directly from outside the repo root (e.g.
+   `python3 -m design.calibration` from another directory), set
+   `PYTHONPATH` instead of installing a package:
    ```bash
-   pip install -e . --no-deps
+   PYTHONPATH=src python3 -m design.calibration
    ```
-   `--no-deps` skips reinstalling dependencies `requirements.txt` already
-   installed; this just registers the package so its entry points and
-   import path work from anywhere. (`pip install -e ".[dashboard,dev]"`
-   on its own, without `requirements.txt` first, also works and pulls
-   the same dependencies from `pyproject.toml` - use whichever manifest
-   you'd rather maintain. `requirements.txt` is kept in sync with
-   `pyproject.toml` by hand; see the comment at the top of that file.)
 
 ## Running it
 
@@ -228,9 +223,10 @@ By default the pipeline skips calibration and reuses the committed
 required to run it. Pass `--recalibrate` to rebuild calibration from
 `data/raw/` instead (requires the CSVs described in "Getting started").
 
-`scripts/run_pipeline.py` doesn't require `pip install -e .` first (it puts
-`src/` on `sys.path` itself). `PREREGISTRATION.md` is already written and
-committed; the pipeline never regenerates it.
+`scripts/run_pipeline.py` doesn't require any package install first (there
+is no `pyproject.toml`; it puts `src/` on `sys.path` itself).
+`docs/PREREGISTRATION.md` is already written and committed; the pipeline
+never regenerates it.
 
 ## Evaluation
 
@@ -301,9 +297,12 @@ limitations below.
   order-level complaint counts by arm rather than using a seller-clustered or
   cluster-robust estimator, understating the true standard error. This is
   anti-conservative (slightly more likely to flag a guardrail breach than a
-  fully rigorous version would), documented in `PREREGISTRATION.md` §8, and
+  fully rigorous version would), documented in `docs/PREREGISTRATION.md` §8, and
   left as a known simplification rather than fixed, since it does not change
   this run's conclusion.
 - **Calibration reflects Olist's category mix and Brazil's market.** Baseline
   AOV distributions and complaint rates may not generalize to a different
   marketplace, region, or time period.
+
+
+
