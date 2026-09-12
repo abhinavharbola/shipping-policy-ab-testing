@@ -43,28 +43,6 @@ satisfaction), the project:
 6. Reports through a plain-language stakeholder memo and a live dashboard,
    both generated from the analysis output only.
 
-## Build-order proof
-
-Most "A/B test" write-ups skip straight to the analysis. The actual
-discipline of experimentation is in what happens *before* you see any data,
-and this project enforces that order literally, through git history, not
-just prose:
-
-```
-7ba1f90 Preregister design: metric, MDE, power analysis, before any
-        simulation code exists
-70722c0 Simulate population, randomize, and run preregistered analysis
-```
-
-`PREREGISTRATION.md` and the power analysis were committed in isolation
-*before* the simulation, randomization, or analysis code existed. Nothing in
-the design could have been fit to a result, because no result existed yet.
-Every commit after `70722c0` (documentation, a calibration bug fix, a move
-to `docs/PREREGISTRATION.md`, other repo restructurings) leaves the file's
-*content* untouched — `git log --follow` tracks it through the rename, and
-`git show 7ba1f90:PREREGISTRATION.md` (its path at that commit) still
-matches the current `docs/PREREGISTRATION.md` byte for byte.
-
 ## Pipeline
 
 ```mermaid
@@ -115,8 +93,8 @@ this ran: [`docs/PREREGISTRATION.md`](docs/PREREGISTRATION.md).
   potential outcome per seller and physically drops the counterfactual
   columns from the file `analyze.py` reads, asserted in code, not assumed.
 - **Immutable preregistration.** `docs/PREREGISTRATION.md` is never edited after
-  its first commit; every later change to this project is diffed against
-  `git show 7ba1f90:docs/PREREGISTRATION.md` before shipping.
+  its first commit; every later change to this project is diffed against the
+  original document before shipping.
 
 ## Data
 
@@ -148,7 +126,7 @@ to calibration.
 ├── .gitignore
 │
 ├── docs/
-│   └── PREREGISTRATION.md       # locked design doc, see build-order proof above
+│   └── PREREGISTRATION.md       # locked design doc
 │
 ├── .streamlit/config.toml       # dashboard theme
 │
@@ -303,6 +281,3 @@ limitations below.
 - **Calibration reflects Olist's category mix and Brazil's market.** Baseline
   AOV distributions and complaint rates may not generalize to a different
   marketplace, region, or time period.
-
-
-

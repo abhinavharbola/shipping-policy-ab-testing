@@ -15,7 +15,7 @@
   },
   "guardrail": {
     "test": "one-sided two-proportion z-test (treatment > control), pooled order-level counts",
-    "unit_for_test": "order (documented clustering simplification, see PREREGISTRATION.md section 8)",
+    "unit_for_test": "order (documented clustering simplification, see docs/PREREGISTRATION.md section 8)",
     "n_treatment_orders": 81239,
     "n_control_orders": 81469,
     "treatment_complaint_rate": 0.1446,
@@ -29,5 +29,3 @@
     "guardrail_breached": false
   }
 }
-
-

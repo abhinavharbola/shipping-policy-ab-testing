@@ -12,7 +12,7 @@
     "required_n_per_arm_sellers": 2503
   },
   "guardrail": {
-    "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower); note the planned analysis test itself is one-sided (non-inferiority), see PREREGISTRATION.md, so this two-sided sizing is a conservative (not undersized) planning approximation",
+    "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower); note the planned analysis test itself is one-sided (non-inferiority), see docs/PREREGISTRATION.md, so this two-sided sizing is a conservative (not undersized) planning approximation",
     "unit_for_sizing": "order (pooled within arm)",
     "baseline_complaint_rate": 0.1276,
     "non_inferiority_margin_absolute": 0.02,
@@ -30,5 +30,3 @@
   "context_real_sellers_in_scope": 2831,
   "context_note": "The design requires 2503 sellers per arm (5006 total). The Olist calibration data contains 2831 sellers in scope. This is reported as context, not as a cap: the analysis population is simulated, so it is sized to what the design requires, not to what one historical snapshot of Olist happened to contain. If the required N could not be reached with real sellers, that would be a real-world feasibility problem for whoever runs this test live, worth flagging to stakeholders, but it does not change what the statistics require."
 }
-
-

@@ -3,8 +3,8 @@ Runs the full experiment pipeline in order:
     calibrate -> power analysis -> simulate -> randomize -> analyze -> report
 
 docs/PREREGISTRATION.md is intentionally not touched by this script; it is a
-locked document, written and committed before any of these steps
-existed, and stays that way (see README.md "build-order proof").
+locked document, written and committed before any of these steps existed,
+and stays that way.
 
 Usage: python3 scripts/run_pipeline.py [--recalibrate]
 
@@ -67,6 +67,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
