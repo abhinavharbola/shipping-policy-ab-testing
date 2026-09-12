@@ -218,10 +218,15 @@ thesis: everything in `design/` is what gets locked into
 ## Running it
 
 ```bash
-python3 scripts/run_pipeline.py   # calibrate -> power -> simulate -> randomize -> analyze -> report
+python3 scripts/run_pipeline.py   # power -> simulate -> randomize -> analyze -> report
 streamlit run dashboard/app.py    # live results dashboard
 python3 -m pytest tests/          # 23 tests, see Evaluation below
 ```
+
+By default the pipeline skips calibration and reuses the committed
+`data/calibration/calibration_params.json`, so the raw Olist CSVs are not
+required to run it. Pass `--recalibrate` to rebuild calibration from
+`data/raw/` instead (requires the CSVs described in "Getting started").
 
 `scripts/run_pipeline.py` doesn't require `pip install -e .` first (it puts
 `src/` on `sys.path` itself). `PREREGISTRATION.md` is already written and
@@ -256,25 +261,37 @@ This is the headline result: the simulated population has a true injected
 AOV lift of R$28.00 and a true injected complaint-rate increase of 1.2
 percentage points, and `test_recovery_check_catches_bugs.py` confirms the
 recovery check can actually detect a wrong answer rather than passing by
-construction. On the committed run, the preregistered analysis recovered
-both:
+construction. On the committed run (`results/analysis_results.json`,
+`results/recovery_check.json`), the preregistered analysis recovered the
+primary metric but not the guardrail:
 
 | | Point estimate | 95% CI | True value | Recovered? |
 |---|---|---|---|---|
-| AOV lift | R$31.59 | [R$24.10, R$39.09] | R$28.00 | Yes |
-| Complaint rate diff | +1.06pp | [+0.73pp, +1.40pp] | +1.20pp | Yes |
+| AOV lift | R$29.02 | [R$21.12, R$36.91] | R$28.00 | Yes |
+| Complaint rate diff | +1.60pp | [+1.27pp, +1.93pp] | +1.20pp | No |
 
-Both intervals contain their true injected value, and the guardrail correctly
-did not breach the 2.0-point margin. This is one seeded run, not proof the
-method generalizes to every possible effect - see limitations below.
+The primary interval contains its true injected value; the guardrail
+interval narrowly misses it (true value sits just below the CI's lower
+bound). This is expected roughly one seeded run in twenty even for a
+correctly-built method, and this project makes exactly one such run - see
+"Recovery is necessary, not sufficient" below. The guardrail decision itself
+is unaffected: the non-inferiority test still correctly did not flag a
+breach of the 2.0-point margin, since +1.60pp stayed under it. This is one
+seeded run, not proof the method generalizes to every possible effect - see
+limitations below.
 
 ## Known limitations
 
-- **Recovery is necessary, not sufficient.** A single seeded run whose CI
-  happens to contain the true effect is expected roughly 95% of the time by
-  construction, even for a correctly-built method; this run passing is a
-  smoke test that the pipeline isn't obviously broken, not proof the method
-  generalizes to every real, unknown effect size.
+- **Recovery is necessary, not sufficient.** A single seeded run's CI is
+  expected to contain the true effect roughly 95% of the time by
+  construction, even for a correctly-built method; on the committed run the
+  primary metric's CI contains the true value and the guardrail's does not.
+  Neither outcome is diagnostic on its own - the primary result passing is a
+  smoke test that the pipeline isn't obviously broken, and the guardrail
+  result missing is within the ~5% expected miss rate, not evidence of a
+  bug (`test_recovery_check_catches_bugs.py` separately confirms the check
+  can detect an actual bug when one is injected). Neither is proof the
+  method generalizes to every real, unknown effect size.
 - **Seller-level randomization assumes no cross-seller interference.** If
   sellers compete for the same limited customer pool, or if Olist's own
   marketing shifts customers toward whichever sellers currently offer free

@@ -37,18 +37,61 @@ def test_private_analysis_helpers_do_not_reference_true_effects_path():
         assert "TRUE_EFFECTS_PATH" not in names_used
 
 
+def _docstring_nodes(tree):
+    """Module, class, and function docstrings, so string-literal checks
+    below can skip prose (e.g. this file's own comments about raw data)
+    and only flag string literals actually used as code, such as a path."""
+    docstrings = set()
+    candidates = [tree] + [
+        n for n in ast.walk(tree)
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    ]
+    for node in candidates:
+        if (
+            node.body
+            and isinstance(node.body[0], ast.Expr)
+            and isinstance(node.body[0].value, ast.Constant)
+            and isinstance(node.body[0].value.value, str)
+        ):
+            docstrings.add(id(node.body[0].value))
+    return docstrings
+
+
+def _string_constants_outside_docstrings(tree):
+    docstring_ids = _docstring_nodes(tree)
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in docstring_ids
+    ]
+
+
+def _no_raw_data_string_literals(filename):
+    tree = ast.parse(_source(filename))
+    for value in _string_constants_outside_docstrings(tree):
+        lowered = value.lower()
+        assert "data/raw" not in lowered, f"{filename} references data/raw in: {value!r}"
+        assert "olist_" not in lowered, f"{filename} references an Olist raw file in: {value!r}"
+
+
 def test_analyze_module_never_imports_raw_olist_paths():
-    src = _source("analyze.py")
-    assert "data/raw" not in src
-    assert "olist_" not in src.lower()
+    _no_raw_data_string_literals("analyze.py")
 
 
 def test_reporting_only_reads_analysis_results():
-    src = _source("reporting.py")
-    assert "data/raw" not in src
-    assert "olist_" not in src.lower()
-    assert "true_effects" not in src.lower()
-    assert "RESULTS_PATH" in src  # only reads the already-computed results file
+    _no_raw_data_string_literals("reporting.py")
+    tree = ast.parse(_source("reporting.py"))
+    for value in _string_constants_outside_docstrings(tree):
+        assert "true_effects" not in value.lower(), (
+            f"reporting.py references true_effects.json in: {value!r}"
+        )
+    top_level_names = {
+        n.id for node in tree.body if isinstance(node, ast.Assign)
+        for n in node.targets if isinstance(n, ast.Name)
+    }
+    assert "RESULTS_PATH" in top_level_names  # only reads the already-computed results file
 
 
 def test_check_ground_truth_recovery_is_the_sole_reader_of_true_effects():
