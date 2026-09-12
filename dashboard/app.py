@@ -81,6 +81,7 @@ DANGER_FILL = "#FF5A48"
 NEUTRAL = "#6B7280"
 
 DISPLAY_FONT = "'Space Grotesk', 'Arial Black', sans-serif"
+TITLE_FONT = "'Archivo Black', 'Arial Black', sans-serif"
 BODY_FONT = "'Inter', -apple-system, sans-serif"
 DATA_FONT = "'JetBrains Mono', 'SFMono-Regular', monospace"
 
@@ -93,7 +94,7 @@ CHART_FONT = "JetBrains Mono"
 st.markdown(
     f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo+Black&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
 
     html, body, [class*="css"] {{
         font-family: {BODY_FONT};
@@ -133,18 +134,21 @@ st.markdown(
     }}
     .masthead .eyebrow {{
         font-family: {DATA_FONT};
-        font-size: 0.74rem;
-        letter-spacing: 0.1em;
+        font-size: 0.78rem;
+        line-height: 1.8;
+        letter-spacing: 0.14em;
         text-transform: uppercase;
         color: {INK_SOFT};
-        margin-bottom: 0.55rem;
+        margin: 0 0 0.8rem 0;
+        overflow: visible;
     }}
     .masthead h1 {{
-        font-weight: 700;
-        font-size: 2.2rem;
+        font-family: {TITLE_FONT};
+        font-weight: 300;
+        font-size: 2.5rem;
         letter-spacing: -0.01em;
-        margin: 0 0 0.65rem 0;
-        line-height: 1.2;
+        margin: 0 0 0.8rem 0;
+        line-height: 1.15;
     }}
     .masthead .subtitle {{
         color: {INK_SOFT};
@@ -243,42 +247,54 @@ st.markdown(
     .stat-row.compact .stat-cell {{ padding-top: 0.75rem; padding-bottom: 0.75rem; }}
     .stat-row.compact .stat-value {{ font-size: 1.15rem; }}
 
-    /* ---- tabs: full-width, evenly divided, inverted on select ---- */
-    [data-testid="stTabs"] [role="tablist"] {{
-        display: flex;
-        width: 100%;
-        gap: 0;
+    /* ---- section nav: full-width, evenly divided, inverted on select ----
+       Built from real st.button widgets (not st.tabs) because Streamlit's
+       internal tab markup is not stable enough to reliably restyle - the
+       column layout below guarantees the four buttons split the frame
+       width evenly regardless of Streamlit version. ---- */
+    .st-key-section_nav div[data-testid="stHorizontalBlock"] {{
         border: 2px solid {INK};
         margin-bottom: 1.8rem;
+        gap: 0 !important;
     }}
-    [data-testid="stTabs"] [data-baseweb="tab-highlight"] {{
-        display: none !important;
+    .st-key-section_nav div[data-testid="column"] {{
+        padding: 0 !important;
+        border-right: 2px solid {INK};
     }}
-    [data-testid="stTabs"] button[role="tab"] {{
-        flex: 1 1 0;
-        font-family: {DISPLAY_FONT};
-        font-weight: 700;
-        font-size: 0.86rem;
+    .st-key-section_nav div[data-testid="column"]:last-child {{
+        border-right: none;
+    }}
+    .st-key-section_nav div[data-testid="stButton"] {{
+        width: 100%;
+    }}
+    .st-key-section_nav button {{
+        font-family: {DISPLAY_FONT} !important;
+        font-weight: 700 !important;
+        font-size: 0.86rem !important;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        padding: 0.9rem 0;
-        margin: 0 !important;
-        border: none;
-        border-right: 2px solid {INK};
+        padding: 0.9rem 0 !important;
+        border: none !important;
         border-radius: 0 !important;
-        background: {PANEL};
-        color: {INK};
-        justify-content: center;
+        box-shadow: none !important;
+        width: 100%;
     }}
-    [data-testid="stTabs"] button[role="tab"]:last-child {{ border-right: none; }}
-    [data-testid="stTabs"] button[role="tab"] p {{
+    .st-key-section_nav button[kind="secondary"] {{
+        background: {PANEL} !important;
+        color: {INK} !important;
+    }}
+    .st-key-section_nav button[kind="primary"] {{
+        background: {INK} !important;
+        color: #FFFFFF !important;
+    }}
+    .st-key-section_nav button:hover {{
+        background: {INK} !important;
+        color: #FFFFFF !important;
+    }}
+    .st-key-section_nav button p {{
         font-family: {DISPLAY_FONT} !important;
         font-weight: 700 !important;
         color: inherit !important;
-    }}
-    [data-testid="stTabs"] [aria-selected="true"] {{
-        background: {INK} !important;
-        color: #FFFFFF !important;
     }}
 
     .stMarkdown p, .stMarkdown li {{
@@ -593,14 +609,40 @@ else:
 st.write("")
 
 # ---------------------------------------------------------------------------
-# Tabs
+# Section nav - four real buttons in equal-width columns rather than
+# st.tabs(), so the bar reliably spans edge to edge with even spacing
+# instead of clustering in the middle.
 # ---------------------------------------------------------------------------
 
-tab_design, tab_results, tab_recovery, tab_memo = st.tabs(
-    ["Design", "Results", "Recovery check", "Memo"]
-)
+SECTIONS = ["Design", "Results", "Recovery check", "Memo"]
+if "active_section" not in st.session_state:
+    st.session_state.active_section = SECTIONS[0]
 
-with tab_design:
+with st.container(key="section_nav"):
+    nav_cols = st.columns(len(SECTIONS), gap="small")
+    for nav_col, name in zip(nav_cols, SECTIONS):
+        with nav_col:
+            is_active = st.session_state.active_section == name
+            if st.button(
+                name,
+                key=f"nav_{name}",
+                type="primary" if is_active else "secondary",
+                use_container_width=True,
+            ):
+                # The button's own color for this run was already fixed by
+                # the `type` argument above, computed from the state as it
+                # stood *before* this click - so without an immediate rerun
+                # the newly active tab wouldn't invert until some later,
+                # unrelated interaction forced a redraw. Rerunning now makes
+                # every button re-evaluate is_active against the fresh
+                # state in the same click.
+                if st.session_state.active_section != name:
+                    st.session_state.active_section = name
+                    st.rerun()
+
+active_section = st.session_state.active_section
+
+if active_section == "Design":
     if not power:
         st.info("Run `python3 -m design.power_analysis` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
@@ -634,7 +676,7 @@ with tab_design:
         with st.expander("Read the full preregistration document"):
             st.markdown(prereg_text)
 
-with tab_results:
+elif active_section == "Results":
     if not has_results or not power:
         st.info("Run `python3 -m experiment.analyze` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
@@ -716,7 +758,7 @@ with tab_results:
         with st.expander("View raw analysis output (JSON)"):
             st.json(results, expanded=True)
 
-with tab_recovery:
+elif active_section == "Recovery check":
     if not has_results or not recovery:
         st.info("Run `python3 -m experiment.analyze` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
@@ -810,7 +852,7 @@ with tab_recovery:
             unsafe_allow_html=True,
         )
 
-with tab_memo:
+elif active_section == "Memo":
     if not has_results:
         st.info("Run `python3 -m experiment.reporting` (or `scripts/run_pipeline.py`) to populate this tab.")
     else:
@@ -822,45 +864,55 @@ with tab_memo:
         n_total = p["n_treatment_sellers"] + p["n_control_sellers"]
         verdict_tone = "good" if verdict == "GO" else "bad"
 
-        st.markdown(
-            f"""
-            <div class="memo-sheet">
-                <div class="memo-head">
-                    <div class="memo-head-row"><span class="memo-k">To</span><span class="memo-v">Decision stakeholders</span></div>
-                    <div class="memo-head-row"><span class="memo-k">From</span><span class="memo-v">Preregistered experiment pipeline</span></div>
-                    <div class="memo-head-row"><span class="memo-k">Re</span><span class="memo-v">Free shipping rollout decision</span></div>
-                </div>
-
-                <div class="hero-top" style="margin-bottom:1.2rem;">{badge(verdict, verdict_tone)}</div>
-                <p class="memo-body">{reasoning}</p>
-
-                <div class="memo-section-title">What we tested</div>
-                <ul class="memo-list">
-                    <li>Randomly split {n_total:,} sellers into two equal groups: standard shipping vs. free shipping</li>
-                    <li>Measured whether free shipping changed average order value</li>
-                    <li>Separately checked whether it made delivery complaints worse</li>
-                </ul>
-
-                <div class="memo-section-title">Results at a glance</div>
-                <div class="memo-stat-grid">
-                    <div class="memo-stat-cell">
-                        <div class="memo-stat-label">Order value, treatment</div>
-                        <div class="memo-stat-value {'good' if significant else ''}">R$ {p['treatment_mean_aov']:.2f}</div>
-                        <div class="memo-stat-note">control R$ {p['control_mean_aov']:.2f} · lift R$ {p['point_estimate_lift']:.2f} · 95% CI [R$ {p['ci_95_low']:.2f}, R$ {p['ci_95_high']:.2f}]</div>
-                    </div>
-                    <div class="memo-stat-cell">
-                        <div class="memo-stat-label">Complaint rate, treatment</div>
-                        <div class="memo-stat-value {'bad' if breach else 'good'}">{g['treatment_complaint_rate']*100:.1f}%</div>
-                        <div class="memo-stat-note">control {g['control_complaint_rate']*100:.1f}% · diff {g['point_estimate_diff']*100:+.1f}pp · margin {g['non_inferiority_margin']*100:.1f}pp</div>
-                    </div>
-                </div>
-
-                <div class="memo-section-title">What happens next</div>
-                <p class="memo-body" style="margin-bottom:0;">{next_step(p, g, verdict)}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        # Built as a flat, single-line HTML string (no blank lines, no
+        # leading indentation) rather than a pretty-printed multi-line
+        # f-string: Streamlit's markdown renderer treats a blank line
+        # inside a raw-HTML block as the block's end, after which any
+        # following line indented 4+ spaces is read as a literal code
+        # block instead of HTML - which is what broke this card before.
+        memo_html = "".join([
+            '<div class="memo-sheet">',
+            '<div class="memo-head">',
+            '<div class="memo-head-row"><span class="memo-k">To</span>'
+            '<span class="memo-v">Decision stakeholders</span></div>',
+            '<div class="memo-head-row"><span class="memo-k">From</span>'
+            '<span class="memo-v">Preregistered experiment pipeline</span></div>',
+            '<div class="memo-head-row"><span class="memo-k">Re</span>'
+            '<span class="memo-v">Free shipping rollout decision</span></div>',
+            '</div>',
+            f'<div class="hero-top" style="margin-bottom:1.2rem;">{badge(verdict, verdict_tone)}</div>',
+            f'<p class="memo-body">{reasoning}</p>',
+            '<div class="memo-section-title">What we tested</div>',
+            '<ul class="memo-list">',
+            f'<li>Randomly split {n_total:,} sellers into two equal groups: '
+            'standard shipping vs. free shipping</li>',
+            '<li>Measured whether free shipping changed average order value</li>',
+            '<li>Separately checked whether it made delivery complaints worse</li>',
+            '</ul>',
+            '<div class="memo-section-title">Results at a glance</div>',
+            '<div class="memo-stat-grid">',
+            '<div class="memo-stat-cell">',
+            '<div class="memo-stat-label">Order value, treatment</div>',
+            f'<div class="memo-stat-value {"good" if significant else ""}">'
+            f'R$ {p["treatment_mean_aov"]:.2f}</div>',
+            f'<div class="memo-stat-note">control R$ {p["control_mean_aov"]:.2f} · '
+            f'lift R$ {p["point_estimate_lift"]:.2f} · '
+            f'95% CI [R$ {p["ci_95_low"]:.2f}, R$ {p["ci_95_high"]:.2f}]</div>',
+            '</div>',
+            '<div class="memo-stat-cell">',
+            '<div class="memo-stat-label">Complaint rate, treatment</div>',
+            f'<div class="memo-stat-value {"bad" if breach else "good"}">'
+            f'{g["treatment_complaint_rate"]*100:.1f}%</div>',
+            f'<div class="memo-stat-note">control {g["control_complaint_rate"]*100:.1f}% · '
+            f'diff {g["point_estimate_diff"]*100:+.1f}pp · '
+            f'margin {g["non_inferiority_margin"]*100:.1f}pp</div>',
+            '</div>',
+            '</div>',
+            '<div class="memo-section-title">What happens next</div>',
+            f'<p class="memo-body" style="margin-bottom:0;">{next_step(p, g, verdict)}</p>',
+            '</div>',
+        ])
+        st.markdown(memo_html, unsafe_allow_html=True)
 
         st.download_button(
             label="Download memo (.md)",
@@ -868,9 +920,6 @@ with tab_memo:
             file_name="free_shipping_experiment_memo.md",
             mime="text/markdown",
         )
-
-        with st.expander("Read the raw memo.md source"):
-            st.markdown(memo_text)
 
 st.markdown(
     """
