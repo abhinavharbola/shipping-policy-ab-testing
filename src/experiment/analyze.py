@@ -2,9 +2,22 @@
 Step 6: analyze.
 
 Runs exactly the tests specified in docs/PREREGISTRATION.md: Welch's t-test
-on seller-level mean AOV (primary), one-sided two-proportion z-test on
-pooled order-level complaints (guardrail). Nothing else, and nothing
-added after seeing the result.
+on seller-level mean AOV (primary), a seller-clustered, margin-shifted
+one-sided non-inferiority test on complaint rate (guardrail). Nothing else,
+and nothing added after seeing the result.
+
+Guardrail test, amended (see docs/PREREGISTRATION.md section 8 amendment):
+previously this pooled order-level complaint counts within each arm and
+tested against a zero-difference null, which understated the true standard
+error (orders from the same seller are not independent -> anti-conservative)
+and combined a from-zero significance test with a separate point-estimate-
+vs-margin check rather than testing the margin itself. The guardrail now
+mirrors the primary test's own unit of analysis: each seller's own
+complaint rate (mean complaint across that seller's orders), and tests the
+margin directly via H0: (p_treatment - p_control) >= margin. Non-inferiority
+(guardrail not breached) is only concluded when that null is rejected, i.e.
+when the data give positive evidence the true gap sits below the margin,
+not merely when the point estimate happens to.
 
 `analyze()` is the only function that touches experimental data, and it
 reads only data/simulated/assigned_experiment.csv, which contains no
@@ -26,7 +39,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy import stats
-from statsmodels.stats.proportion import proportions_ztest
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
@@ -109,46 +121,85 @@ def _analyze_primary(experiment_df):
 
 
 def _analyze_guardrail(experiment_df):
-    treatment = experiment_df[experiment_df["arm"] == "treatment"]
-    control = experiment_df[experiment_df["arm"] == "control"]
+    """
+    Thin wrapper: reads the preregistered margin from results/power_analysis.json
+    and delegates to _guardrail_stats, which contains the actual test logic
+    and takes the margin as a plain argument so it can be unit-tested
+    directly without file I/O (see tests/test_guardrail_clustering_fix.py).
+    """
+    margin = json.load(open(POWER_PATH))["guardrail"][
+        "non_inferiority_margin_absolute"
+    ]
+    return _guardrail_stats(experiment_df, margin)
 
-    count = np.array([treatment["complaint"].sum(), control["complaint"].sum()])
-    nobs = np.array([len(treatment), len(control)])
 
-    # One-sided: is treatment's complaint rate higher than control's?
-    z_stat, p_value_one_sided = proportions_ztest(count, nobs, alternative="larger")
+def _guardrail_stats(experiment_df, margin):
+    """
+    Seller-clustered, margin-shifted one-sided non-inferiority test.
 
-    p_treatment = count[0] / nobs[0]
-    p_control = count[1] / nobs[1]
-    point_estimate = float(p_treatment - p_control)
+    Unit of analysis is the seller (each seller's own complaint rate, mean
+    complaint across that seller's orders), matching the unit of
+    randomization, the same principle _analyze_primary already applies to
+    AOV. Testing at the order level (the previous approach) treats orders
+    from the same seller as independent, which they are not, and understates
+    the true standard error.
 
-    # Reported CI is the standard two-sided 95% interval for the point estimate
-    # itself (used below by the ground-truth recovery check); the go/no-go
-    # breach decision does not use this CI at all, it uses p_value_one_sided
-    # against ALPHA directly, consistent with the preregistered one-sided test.
-    se = np.sqrt(p_treatment * (1 - p_treatment) / nobs[0] + p_control * (1 - p_control) / nobs[1])
+    The null hypothesis is shifted to the preregistered margin itself,
+    H0: (p_treatment - p_control) >= margin, H1: (p_treatment - p_control)
+    < margin, rather than testing against a zero-difference null and
+    checking the point estimate against the margin as a separate, informal
+    step. Non-inferiority (guardrail not breached) is concluded only when
+    H0 is rejected at alpha, i.e. only when the data give positive evidence
+    the true gap sits below the margin.
+    """
+    seller_rates = (
+        experiment_df.groupby(["seller_id", "arm"])["complaint"].mean().reset_index()
+    )
+    treatment = seller_rates.loc[seller_rates["arm"] == "treatment", "complaint"]
+    control = seller_rates.loc[seller_rates["arm"] == "control", "complaint"]
+
+    p_treatment = float(treatment.mean())
+    p_control = float(control.mean())
+    point_estimate = p_treatment - p_control
+
+    se = np.sqrt(treatment.var(ddof=1) / len(treatment) + control.var(ddof=1) / len(control))
+
+    # Margin-shifted one-sided z-test (large seller counts -> normal
+    # approximation is appropriate). Small p-value = reject H0 = conclude
+    # non-inferiority.
+    z_stat = (point_estimate - margin) / se
+    p_value_non_inferiority = float(stats.norm.cdf(z_stat))
+    non_inferiority_established = bool(p_value_non_inferiority < ALPHA)
+    breach = not non_inferiority_established
+
+    # Reported two-sided 95% CI for the point estimate itself, used by the
+    # ground-truth recovery check; the breach decision above does not use
+    # this CI, it tests the margin-shifted null directly.
     z_crit = stats.norm.ppf(1 - ALPHA / 2)
     ci_low = point_estimate - z_crit * se
     ci_high = point_estimate + z_crit * se
 
-    margin = json.load(open(POWER_PATH))["guardrail"][
-        "non_inferiority_margin_absolute"
-    ]
-    breach = point_estimate > margin and p_value_one_sided < ALPHA
+    n_treatment_orders = int(len(experiment_df[experiment_df["arm"] == "treatment"]))
+    n_control_orders = int(len(experiment_df[experiment_df["arm"] == "control"]))
 
     return {
-        "test": "one-sided two-proportion z-test (treatment > control), pooled order-level counts",
-        "unit_for_test": "order (documented clustering simplification, see docs/PREREGISTRATION.md section 8)",
-        "n_treatment_orders": int(nobs[0]),
-        "n_control_orders": int(nobs[1]),
+        "test": "seller-clustered, margin-shifted one-sided z-test "
+        "(non-inferiority: H0 is diff >= margin)",
+        "unit_for_test": "seller (mean complaint rate across that seller's "
+        "orders), matching the unit of randomization",
+        "n_treatment_sellers": int(len(treatment)),
+        "n_control_sellers": int(len(control)),
+        "n_treatment_orders": n_treatment_orders,
+        "n_control_orders": n_control_orders,
         "treatment_complaint_rate": round(float(p_treatment), 4),
         "control_complaint_rate": round(float(p_control), 4),
         "point_estimate_diff": round(point_estimate, 4),
         "ci_95_low": round(float(ci_low), 4),
         "ci_95_high": round(float(ci_high), 4),
-        "z_statistic": round(float(z_stat), 4),
-        "p_value_one_sided": float(p_value_one_sided),
+        "z_statistic_vs_margin": round(float(z_stat), 4),
+        "p_value_non_inferiority": p_value_non_inferiority,
         "non_inferiority_margin": margin,
+        "non_inferiority_established": non_inferiority_established,
         "guardrail_breached": bool(breach),
     }
 
@@ -200,6 +251,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-

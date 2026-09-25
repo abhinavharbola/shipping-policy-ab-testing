@@ -88,10 +88,14 @@ def guardrail_power(calibration):
     n_per_arm_sellers_equiv = math.ceil(n_per_arm_orders / orders_per_seller)
 
     return {
-        "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower); "
-        "note the planned analysis test itself is one-sided (non-inferiority), "
-        "see docs/PREREGISTRATION.md, so this two-sided sizing is a conservative "
-        "(not undersized) planning approximation",
+        "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower), pooled "
+        "order-level counts; note the planned analysis test itself is a one-sided, "
+        "margin-shifted, seller-clustered non-inferiority test (see "
+        "docs/PREREGISTRATION.md section 8), so this order-level two-sided sizing "
+        "is a conservative (not undersized) planning approximation, not a sizing "
+        "of the exact test that gets run. A seller-level power calculation would "
+        "need per-seller complaint-rate variance, which calibration.py does not "
+        "currently compute from the raw data.",
         "unit_for_sizing": "order (pooled within arm)",
         "baseline_complaint_rate": p1,
         "non_inferiority_margin_absolute": GUARDRAIL_MARGIN_ABSOLUTE,
@@ -159,6 +163,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-

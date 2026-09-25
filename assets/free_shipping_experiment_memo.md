@@ -1,8 +1,8 @@
 # Free Shipping Experiment: Stakeholder Memo
 
-## Recommendation: GO
+## Recommendation: NO-GO
 
-Roll out free shipping. It raises average order value by a statistically clear margin, and the complaint rate did not cross the line we set in advance.
+Hold off. The complaint rate rose more than the agreed threshold, regardless of the AOV result. Fix delivery experience before revisiting free shipping.
 
 ## What we tested
 
@@ -20,10 +20,10 @@ shipping. That's a lift of **`R$ 29.02`** (95% confidence interval: `R$ 21.12` t
 
 ## Complaint rate check (guardrail)
 
-Delivery complaints ran at 14.5% under free shipping versus 12.9%
-under standard shipping, a difference of 1.6 percentage points. We had
-pre-agreed that anything under 2.0 points was acceptable. This stayed within that line.
+Delivery complaints ran at 14.5% under free shipping versus 12.2%
+under standard shipping, a difference of 2.3 percentage points. We had
+pre-agreed that anything under 2.0 points was acceptable. This crossed that line.
 
 ## Bottom line
 
-Ship the change, then keep watching the complaint rate for at least one full cycle after rollout. The guardrail held in this trial; it still needs to hold outside it.
+Fix delivery capacity or expectations before re-testing. Rerunning the same experiment without addressing what's driving complaints will likely breach the guardrail again.

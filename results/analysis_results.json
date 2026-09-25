@@ -14,18 +14,21 @@
     "significant_at_alpha_0.05": true
   },
   "guardrail": {
-    "test": "one-sided two-proportion z-test (treatment > control), pooled order-level counts",
-    "unit_for_test": "order (documented clustering simplification, see docs/PREREGISTRATION.md section 8)",
+    "test": "seller-clustered, margin-shifted one-sided z-test (non-inferiority: H0 is diff >= margin)",
+    "unit_for_test": "seller (mean complaint rate across that seller's orders), matching the unit of randomization",
+    "n_treatment_sellers": 2503,
+    "n_control_sellers": 2503,
     "n_treatment_orders": 81239,
     "n_control_orders": 81469,
-    "treatment_complaint_rate": 0.1446,
-    "control_complaint_rate": 0.1286,
-    "point_estimate_diff": 0.016,
-    "ci_95_low": 0.0127,
-    "ci_95_high": 0.0193,
-    "z_statistic": 9.3953,
-    "p_value_one_sided": 2.852102988660847e-21,
+    "treatment_complaint_rate": 0.1451,
+    "control_complaint_rate": 0.1219,
+    "point_estimate_diff": 0.0232,
+    "ci_95_low": 0.0125,
+    "ci_95_high": 0.0338,
+    "z_statistic_vs_margin": 0.5853,
+    "p_value_non_inferiority": 0.720823931465042,
     "non_inferiority_margin": 0.02,
-    "guardrail_breached": false
+    "non_inferiority_established": false,
+    "guardrail_breached": true
   }
 }
