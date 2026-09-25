@@ -100,6 +100,3 @@ def test_recovery_check_fails_when_randomization_is_broken(tmp_path, monkeypatch
 
     recovery = analyze.check_ground_truth_recovery(results)
     assert recovery["primary_recovered"] is False
-
-
-

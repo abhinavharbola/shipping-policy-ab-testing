@@ -47,6 +47,3 @@ def test_analyze_accepts_fully_realized_dataset():
     results = analyze.analyze(df, expected_n_per_arm=100)
     assert "primary" in results
     assert "guardrail" in results
-
-
-

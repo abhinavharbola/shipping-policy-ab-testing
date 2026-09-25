@@ -56,8 +56,8 @@ Full section-by-section design rationale is documented in [`docs/PREREGISTRATION
 | Guardrail margin     | 2.0pp non-inferiority                     | Represents an approximately 15% relative increase           |
 | Randomization unit   | Seller, not order                         | Avoids violating SUTVA within a seller's order stream       |
 | Primary test         | Welch's t-test                            | Allows for unequal variance between arms                    |
-| Guardrail test       | One-sided two-proportion z-test           | The business question is non-inferiority                    |
-| Required sample size | 2,499 sellers/arm, 4,998 total            | The primary metric is the binding constraint                |
+| Guardrail test       | One-sided, margin-shifted z-test, seller-clustered | Tests non-inferiority against the margin directly, not just against zero |
+| Required sample size | 2,503 sellers/arm, 5,006 total            | The primary metric is the binding constraint                |
 
 ## Guardrails
 
@@ -188,8 +188,9 @@ It never regenerates or modifies `docs/PREREGISTRATION.md`.
 * **`test_recovery_check_catches_bugs.py`** is a mutation test that deliberately breaks randomization and verifies that the ground-truth recovery check detects the resulting error.
 * **`test_no_raw_data_leak.py`** uses AST inspection to verify that raw data and the known injected effect cannot reach `analyze.py` or `reporting.py`.
 * **`test_memo_rendering.py`** protects against a real Streamlit markdown-rendering bug that silently broke currency formatting.
+* **`test_guardrail_clustering_fix.py`** pins the guardrail-test fix (`docs/PREREGISTRATION.md` section 8 amendment): the unit of analysis is the seller, not the order, and the breach decision tests the preregistered margin directly rather than a from-zero p-value combined with a separate point-estimate check.
 
-Current committed status: **23/23 tests passing, `pyflakes` clean.**
+Current committed status: **26/26 tests passing** (`test_power_analysis.py`'s 4 tests are unmodified by the guardrail fix; `pyflakes` clean on all touched files).
 
 ## Results
 
@@ -198,16 +199,16 @@ The committed simulation injects:
 * **AOV lift:** R$28.00
 * **Complaint-rate increase:** 1.2 percentage points
 
-The preregistered analysis recovered the primary metric but did not recover the guardrail's exact injected value within its confidence interval:
+The preregistered analysis recovered the primary metric; the guardrail's confidence interval narrowly missed its true injected value:
 
 | Metric                    | Point estimate | 95% CI             | True value | Recovered? |
 | ------------------------- | -------------: | ------------------ | ---------: | ---------- |
 | AOV lift                  |        R$29.02 | [R$21.12, R$36.91] |    R$28.00 | Yes        |
-| Complaint rate difference |        +1.60pp | [+1.27pp, +1.93pp] |    +1.20pp | No         |
+| Complaint rate difference |        +2.32pp | [+1.25pp, +3.38pp] |    +1.20pp | No         |
 
-The primary interval contains the true injected effect. The guardrail interval narrowly misses it, which is consistent with the approximately 5% miss rate expected from a nominal 95% confidence interval.
+The primary interval contains the true injected effect. The guardrail interval misses it by a very small margin relative to its own width (well under 0.1 standard errors outside the boundary), consistent with the roughly 5% miss rate expected from a nominal 95% confidence interval.
 
-Importantly, the guardrail decision itself is unchanged: +1.60pp remains below the preregistered 2.0pp non-inferiority margin.
+**The guardrail decision itself changed as a direct result of fixing the clustering issue below, from GO to NO-GO.** Under the original, order-pooled analysis, the observed gap was +1.60pp, under the preregistered margin. Under the corrected, seller-clustered analysis (`docs/PREREGISTRATION.md` section 8 amendment), the same underlying data produces +2.32pp, over the 2.0pp margin, and the guardrail is breached. This is not the old analysis being "right" and the new one "wrong," or vice versa: both estimators are unbiased for the true, constant per-seller effect in expectation, but the seller-clustered estimator has substantially higher variance here, because the population has many low-order-count sellers (right-skewed orders-per-seller distribution) that the unweighted, seller-level analysis counts equally alongside high-volume sellers, each contributing a noisier, more volatile per-seller complaint rate. The old order-pooled analysis implicitly downweighted exactly those noisy, low-volume sellers by weighting each order equally instead, which is also why its confidence interval was too narrow (anti-conservative). On this specific seeded run, that extra variance pushed the point estimate over the line. This is the honest, if uncomfortable, output of fixing a real statistical bias: a guardrail methodology that better reflects the actual randomization unit surfaced a signal the previous, anti-conservative methodology was masking.
 
 This is one seeded simulation run, not evidence that the method generalizes to every possible real-world effect.
 
@@ -215,5 +216,6 @@ This is one seeded simulation run, not evidence that the method generalizes to e
 
 * **Recovery is necessary, not sufficient.** A single seeded confidence interval is expected to contain the true effect roughly 95% of the time. Passing or failing that check alone does not establish that the method is correct or generalizes.
 * **Seller-level randomization assumes no cross-seller interference.** Competition for the same customers or marketplace-level effects could cause treatment effects to leak between arms.
-* **Guardrail clustering simplification.** The guardrail analysis pools order-level complaint counts rather than using a seller-clustered or cluster-robust estimator. This can understate the standard error and is therefore slightly anti-conservative.
+* **Guardrail test power sizing stays order-level.** `power_analysis.py` still sizes the guardrail using a pooled, order-level proportions test, deliberately as a conservative (not undersized) planning approximation (see `docs/PREREGISTRATION.md` section 4). The actual analysis (`analyze.py`) now uses a seller-clustered, margin-shifted non-inferiority test that matches the randomization unit; a fully matched seller-level power calculation would require per-seller complaint-rate variance from the raw data, which this project's calibration step does not currently compute.
 * **Calibration is marketplace-specific.** The baseline AOV distributions and complaint rates reflect Olist's category mix and the Brazilian market and may not generalize to another marketplace, geography, or time period.
+* **The seller-clustered guardrail estimator is unweighted by design, and therefore sensitive to low-order-count sellers.** Each seller's complaint rate counts equally regardless of how many orders it's estimated from, which is the statistically correct match to the seller-level randomization unit, but means a seller with very few orders contributes a noisy, high-variance rate on equal footing with a high-volume seller. That's a real driver of the wider (and more honest) confidence interval in the Results section above, and of the guardrail verdict changing on this seeded run. A seller-level mixed-effects or GEE model, or a minimum-orders-per-seller inclusion threshold, would be a more robust next step than the current unweighted mean-of-rates estimator.

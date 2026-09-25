@@ -106,6 +106,3 @@ def test_check_ground_truth_recovery_is_the_sole_reader_of_true_effects():
             if "TRUE_EFFECTS_PATH" in names_used:
                 functions_referencing_true_effects.append(node.name)
     assert functions_referencing_true_effects == ["check_ground_truth_recovery"]
-
-
-

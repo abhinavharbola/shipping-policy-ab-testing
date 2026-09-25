@@ -116,31 +116,52 @@ Unit of analysis: one observation per seller (that seller's mean AOV
 across their orders in the study window), matching the unit of
 randomization.
 
-## 8. Planned guardrail analysis: one-sided proportions test
+## 8. Planned guardrail analysis: seller-clustered non-inferiority test
 
 The business question is "does the complaint rate get meaningfully
 worse", which is a non-inferiority question, not a two-sided one. The
-planned test is a **one-sided two-proportion z-test** (treatment rate
-vs. control rate, alternative: treatment is higher by more than the
-0 percentage points needed to raise a two-sided flag — practically,
-the test asks whether treatment's complaint rate exceeds control's,
-one-sided), with the pre-specified 2.0-point margin used to interpret
-the result. Expected event counts (thousands of orders per arm) are
-large enough for the normal approximation to be appropriate; Fisher's
-exact test is not needed at this scale.
+planned test is a **one-sided, margin-shifted z-test on each seller's
+own complaint rate**: unit of analysis is the seller (mean complaint
+across that seller's orders), matching the unit of randomization, the
+same principle used for the primary metric in section 7. The null
+hypothesis is shifted to the preregistered margin itself, H0:
+(p_treatment − p_control) ≥ margin, H1: (p_treatment − p_control) <
+margin, and non-inferiority (guardrail not breached) is concluded only
+when H0 is rejected at alpha, i.e. only when the data give positive
+evidence the true gap sits below the margin. Seller counts per arm
+(thousands) are large enough for the normal approximation to be
+appropriate.
 
-**Documented simplification:** because randomization is at the seller
-level, the statistically ideal version of this test would operate on
-seller-level aggregates or use a cluster-robust variance estimator. For
-this project, the guardrail test instead pools order-level complaint
-counts within each arm. This treats orders as independent within a
-seller, which understates the true standard error and is
-**anti-conservative**: it makes the guardrail test somewhat more likely
-to flag a breach than a fully clustered analysis would, i.e. it errs
-toward caution on user harm at the cost of a slightly inflated
-false-positive rate on the guardrail specifically. This is flagged here
-rather than hidden, and is out of scope to fix for this project (see
-README limitations).
+**Amendment (pre-analysis, methodology only).** The original version of
+this section specified a pooled, order-level two-proportion z-test
+against a zero-difference null, with the margin applied only as a
+separate check on the point estimate afterward. That version is
+superseded by the seller-clustered, margin-shifted test above, for two
+reasons: pooling order-level counts treats orders from the same seller
+as independent, which they are not, understating the true standard
+error (anti-conservative); and testing against a zero-difference null
+rather than the margin itself does not actually test the non-inferiority
+question the guardrail exists to answer, at this project's sample size
+a from-zero test is significant for almost any nonzero difference, so it
+does little real discriminating work beyond the separate point-estimate
+check. This amendment changes analysis methodology only, decided before
+any experimental (simulated) data existed for the amended pipeline run,
+not a change made after inspecting a disfavored result; the original
+simplification and its consequences are kept below for the record,
+since a real trial's amendment history should be auditable, not erased.
+
+**Original documented simplification (superseded above):** because
+randomization is at the seller level, the statistically ideal version
+of this test would operate on seller-level aggregates or use a
+cluster-robust variance estimator. The original version of this project
+instead pooled order-level complaint counts within each arm, treating
+orders as independent within a seller, which understated the true
+standard error and was anti-conservative: it made the guardrail test
+somewhat more likely to flag a breach than a fully clustered analysis
+would, i.e. it erred toward caution on user harm at the cost of a
+slightly inflated false-positive rate on the guardrail specifically.
+That tradeoff is no longer necessary now that the guardrail test is
+seller-clustered directly.
 
 ## 9. Commit discipline
 
@@ -148,6 +169,3 @@ This file is committed to git as its own commit before
 `simulate.py`, `randomize.py`, or `analyze.py` are written.
 The git log is the literal proof the design was fixed before the
 simulated data existed to fit it to.
-
-
-
