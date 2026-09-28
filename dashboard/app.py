@@ -1,11 +1,11 @@
 """
-Dashboard: neo-brutalist report view.
+Dashboard: Japandi report view.
 
-Flat paper background, white panels with 3px black borders, hard offset
-shadows with no blur, and saturated flat fills reserved for status and
-navigation. Buttons physically press into their shadow on hover. Space
-Grotesk and Archivo Black carry headings, Inter carries prose, and
-JetBrains Mono is used only for numeric data.
+Warm greige paper, linen panels, hairline rules, no shadows, small
+radii, and generous whitespace. Shippori Mincho carries headings and the
+verdict, DM Sans carries everything else with tabular numerals. Sage,
+ochre and clay are reserved for status. Navigation is a quiet text tab
+bar with an underline marking the active section.
 
 The verdict is computed by calling experiment.reporting.recommendation()
 on the analysis output, never by parsing memo.md. Currency always shows 2
@@ -14,6 +14,7 @@ spans so Streamlit does not read dollar signs as LaTeX.
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -38,478 +39,386 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-PAPER = "#E9EEFF"
-PANEL = "#FFFFFF"
-INK = "#000000"
-INK_SOFT = "#2B2B33"
-GRID = "#C9CDE0"
-ACCENT = "#4D6BFF"
-HIGHLIGHT = "#FFE14D"
+PAPER = "#ECE8E1"
+PANEL = "#F8F6F2"
+INK = "#2A2926"
+INK_SOFT = "#6B675F"
+GRID = "#DDD7CB"
+RULE = "#CFC8BB"
+ACCENT = "#6F7B67"
+HIGHLIGHT = "#E4DED3"
 
-SUCCESS = "#0A7A4B"
-SUCCESS_FILL = "#3DDC84"
-WARNING = "#7A5200"
-WARNING_FILL = "#FFD23F"
-DANGER = "#B3140A"
-DANGER_FILL = "#FF5C4D"
-NEUTRAL = "#B8BDD6"
+SUCCESS = "#4F6143"
+SUCCESS_FILL = "#A9B89A"
+WARNING = "#7D5A1E"
+WARNING_FILL = "#D8B879"
+DANGER = "#8C3B2E"
+DANGER_FILL = "#C98F80"
+NEUTRAL = "#C3BCAE"
 
-DISPLAY_FONT = "'Space Grotesk', 'Arial Black', sans-serif"
-TITLE_FONT = "'Archivo Black', 'Arial Black', sans-serif"
-BODY_FONT = "'Inter', -apple-system, sans-serif"
-DATA_FONT = "'JetBrains Mono', 'SFMono-Regular', monospace"
+DISPLAY_FONT = "'Shippori Mincho', 'Hiragino Mincho ProN', Georgia, serif"
+TITLE_FONT = DISPLAY_FONT
+BODY_FONT = "'DM Sans', -apple-system, 'Segoe UI', sans-serif"
+DATA_FONT = BODY_FONT
 
-CHART_FONT = "JetBrains Mono"
-
-BORDER = "3px solid " + INK
-SHADOW = "6px 6px 0 " + INK
+CHART_FONT = "DM Sans"
 
 st.markdown(
     f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo+Black&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;600;700&family=DM+Sans:wght@400;500;600&display=swap');
 
     html, body, [class*="css"] {{
         font-family: {BODY_FONT};
         color: {INK};
+        font-variant-numeric: tabular-nums;
     }}
-
-    [data-testid="stAppViewContainer"] {{
-        background-color: {PAPER};
-        background-image: radial-gradient({GRID} 1.5px, transparent 1.5px);
-        background-size: 22px 22px;
-    }}
-
+    [data-testid="stAppViewContainer"] {{ background-color: {PAPER}; }}
     [data-testid="stHeader"] {{ background: transparent; }}
-
-    [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] {{
-        display: none !important;
-    }}
+    [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] {{ display: none !important; }}
 
     .block-container {{
-        padding-top: 2.4rem;
-        padding-bottom: 2.4rem;
-        max-width: 1120px;
+        padding-top: 3.2rem;
+        padding-bottom: 3rem;
+        max-width: 1040px;
         margin-left: auto;
         margin-right: auto;
     }}
-
-    h1, h2, h3, h4 {{
-        font-family: {DISPLAY_FONT};
-        color: {INK};
-    }}
-
+    h1, h2, h3, h4 {{ font-family: {DISPLAY_FONT}; color: {INK}; font-weight: 500; }}
     code {{
         font-family: {DATA_FONT};
         background: {HIGHLIGHT};
         color: {INK};
-        border: 2px solid {INK};
-        padding: 0.05rem 0.3rem;
-        border-radius: 0;
+        padding: 0.1rem 0.4rem;
+        border-radius: 3px;
+        font-size: 0.9em;
     }}
 
     .masthead {{
-        background: {HIGHLIGHT};
-        border: {BORDER};
-        box-shadow: {SHADOW};
+        margin: 0 0 2.8rem 0;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid {RULE};
         text-align: center;
-        margin: 0 auto 2.2rem auto;
-        max-width: 820px;
-        padding: 1.6rem 2rem 1.7rem 2rem;
     }}
     .masthead .eyebrow {{
-        display: inline-block;
-        background: {INK};
-        color: #FFFFFF;
-        font-family: {DATA_FONT};
-        font-size: 0.78rem;
-        font-weight: 700;
-        line-height: 1.8;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        padding: 0.1rem 0.8rem;
+        font-size: 0.86rem;
+        color: {ACCENT};
+        font-weight: 500;
+        letter-spacing: 0.02em;
         margin: 0 0 0.9rem 0;
     }}
     .masthead h1 {{
         font-family: {TITLE_FONT};
-        font-weight: 400;
-        font-size: 2.7rem;
-        letter-spacing: -0.02em;
-        margin: 0 0 0.8rem 0;
-        line-height: 1.1;
+        font-weight: 500;
+        font-size: 2.9rem;
+        letter-spacing: -0.01em;
+        line-height: 1.15;
+        margin: 0 0 1.1rem 0;
         padding: 0;
     }}
     .masthead .subtitle {{
-        color: {INK};
-        font-size: 0.98rem;
-        font-weight: 500;
-        line-height: 1.6;
-        margin: 0 auto;
+        color: {INK_SOFT};
+        font-size: 1rem;
+        line-height: 1.75;
         text-align: justify;
         text-align-last: center;
     }}
 
     .hero {{
         background: {PANEL};
-        border: {BORDER};
-        box-shadow: {SHADOW};
-        padding: 1.8rem 1.9rem 0 1.9rem;
-        margin: 0 0 1.6rem 0;
+        border: 1px solid {RULE};
+        border-radius: 4px;
+        padding: 2.2rem 2.4rem 0 2.4rem;
+        margin: 0 0 1.4rem 0;
     }}
-    .hero-top {{
-        display: flex;
-        justify-content: center;
-        margin-bottom: 1rem;
-    }}
+    .hero-top {{ display: flex; justify-content: center; margin-bottom: 1.3rem; }}
     .badge {{
         display: inline-block;
-        font-family: {TITLE_FONT};
-        font-weight: 400;
-        font-size: 1.7rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        padding: 0.3rem 1.3rem;
-        border: {BORDER};
-        box-shadow: 4px 4px 0 {INK};
+        font-family: {DISPLAY_FONT};
+        font-weight: 600;
+        font-size: 1.5rem;
+        letter-spacing: 0.06em;
+        padding: 0.25rem 1.1rem;
+        border: 1px solid {INK};
+        border-radius: 2px;
         color: {INK};
-        transform: rotate(-1.5deg);
     }}
-    .badge.sm {{ font-size: 0.78rem; padding: 0.2rem 0.6rem; letter-spacing: 0.06em; box-shadow: 2px 2px 0 {INK}; }}
-    .badge.good {{ background: {SUCCESS_FILL}; }}
-    .badge.caution {{ background: {WARNING_FILL}; }}
-    .badge.bad {{ background: {DANGER_FILL}; }}
-    .badge.neutral {{ background: {PANEL}; }}
+    .badge.sm {{ font-size: 0.8rem; padding: 0.15rem 0.6rem; }}
+    .badge.good {{ background: {SUCCESS_FILL}; border-color: {SUCCESS}; color: {SUCCESS}; }}
+    .badge.caution {{ background: {WARNING_FILL}; border-color: {WARNING}; color: {WARNING}; }}
+    .badge.bad {{ background: {DANGER_FILL}; border-color: {DANGER}; color: {DANGER}; }}
+    .badge.neutral {{ background: {HIGHLIGHT}; border-color: {RULE}; color: {INK_SOFT}; }}
 
     .hero-reasoning {{
         color: {INK};
-        font-size: 1rem;
-        font-weight: 500;
-        line-height: 1.6;
-        max-width: 70ch;
-        margin: 0 auto 1rem auto;
+        font-size: 1.05rem;
+        line-height: 1.75;
+        margin: 0 0 1.6rem 0;
         text-align: justify;
         text-align-last: center;
     }}
-    .hero-reasoning:last-child {{ margin-bottom: 1.8rem; }}
+    .hero-reasoning:last-child {{ margin-bottom: 2.2rem; }}
     .hero-meta {{
-        color: {INK};
-        font-size: 0.78rem;
-        font-weight: 600;
-        margin: 0 -1.9rem 0 -1.9rem;
-        padding: 0.6rem 1rem;
-        background: {PAPER};
-        border-top: {BORDER};
-        font-family: {DATA_FONT};
+        color: {INK_SOFT};
+        font-size: 0.82rem;
+        margin: 0 -2.4rem 0 -2.4rem;
+        padding: 0.9rem 2.4rem;
+        border-top: 1px solid {RULE};
         text-align: center;
     }}
 
     .stat-row {{
         display: flex;
         background: {PANEL};
-        border: {BORDER};
-        box-shadow: {SHADOW};
-        margin-bottom: 0.4rem;
+        border: 1px solid {RULE};
+        border-radius: 4px;
+        margin-bottom: 0.6rem;
     }}
     .stat-cell {{
         flex: 1;
-        padding: 1.1rem 1.2rem 1.2rem 1.2rem;
-        border-right: {BORDER};
+        padding: 1.4rem 1.6rem 1.5rem 1.6rem;
+        border-right: 1px solid {RULE};
         text-align: center;
     }}
     .stat-cell:last-child {{ border-right: none; }}
     .stat-label {{
-        font-family: {DISPLAY_FONT};
-        font-size: 0.78rem;
-        color: {INK};
-        margin-bottom: 0.5rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        font-size: 0.86rem;
+        color: {INK_SOFT};
+        margin-bottom: 0.6rem;
+        font-weight: 500;
     }}
     .stat-value {{
-        display: inline-block;
-        font-family: {DATA_FONT};
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: {INK};
-        line-height: 1.25;
-        padding: 0.05rem 0.5rem;
-        border: 3px solid transparent;
-    }}
-    .stat-value.good {{ background: {SUCCESS_FILL}; border-color: {INK}; }}
-    .stat-value.caution {{ background: {WARNING_FILL}; border-color: {INK}; }}
-    .stat-value.bad {{ background: {DANGER_FILL}; border-color: {INK}; }}
-    .stat-note {{
-        font-family: {DATA_FONT};
-        font-size: 0.76rem;
+        font-family: {DISPLAY_FONT};
+        font-size: 1.85rem;
         font-weight: 500;
-        color: {INK_SOFT};
-        margin-top: 0.5rem;
-        line-height: 1.5;
+        color: {INK};
+        line-height: 1.2;
     }}
-    .stat-row.compact .stat-cell {{ padding-top: 0.8rem; padding-bottom: 0.85rem; }}
-    .stat-row.compact .stat-value {{ font-size: 1.15rem; }}
+    .stat-value.good {{ color: {SUCCESS}; }}
+    .stat-value.caution {{ color: {WARNING}; }}
+    .stat-value.bad {{ color: {DANGER}; }}
+    .stat-note {{
+        font-size: 0.8rem;
+        color: {INK_SOFT};
+        margin-top: 0.6rem;
+        line-height: 1.55;
+    }}
+    .stat-row.compact .stat-cell {{ padding-top: 1.1rem; padding-bottom: 1.2rem; }}
+    .stat-row.compact .stat-value {{ font-size: 1.4rem; }}
 
     .st-key-section_nav div[data-testid="stHorizontalBlock"] {{
-        border: {BORDER};
-        box-shadow: {SHADOW};
-        background: {PANEL};
-        margin-bottom: 2rem;
+        border-bottom: 1px solid {RULE};
+        margin: 1.4rem 0 2.2rem 0;
         gap: 0 !important;
     }}
-    .st-key-section_nav div[data-testid="column"] {{
-        padding: 0 !important;
-        border-right: {BORDER};
-    }}
-    .st-key-section_nav div[data-testid="column"]:last-child {{
-        border-right: none;
-    }}
-    .st-key-section_nav div[data-testid="stButton"] {{
-        width: 100%;
-    }}
+    .st-key-section_nav div[data-testid="column"] {{ padding: 0 !important; }}
+    .st-key-section_nav div[data-testid="stButton"] {{ width: 100%; }}
     .st-key-section_nav button {{
-        font-family: {DISPLAY_FONT} !important;
-        font-weight: 700 !important;
-        font-size: 0.9rem !important;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding: 0.95rem 0 !important;
+        font-family: {BODY_FONT} !important;
+        font-weight: 500 !important;
+        font-size: 0.98rem !important;
+        padding: 0.9rem 0 !important;
         border: none !important;
         border-radius: 0 !important;
         box-shadow: none !important;
+        background: transparent !important;
         width: 100%;
-        transition: none;
+        transition: color 0.15s;
     }}
-    .st-key-section_nav button[kind="secondary"] {{
-        background: {PANEL} !important;
-        color: {INK} !important;
-    }}
+    .st-key-section_nav button[kind="secondary"] {{ color: {INK_SOFT} !important; }}
+    .st-key-section_nav button[kind="secondary"]:hover {{ color: {INK} !important; }}
     .st-key-section_nav button[kind="primary"] {{
-        background: {ACCENT} !important;
-        color: #FFFFFF !important;
-    }}
-    .st-key-section_nav button[kind="secondary"]:hover {{
-        background: {HIGHLIGHT} !important;
         color: {INK} !important;
+        box-shadow: inset 0 -2px 0 {INK} !important;
     }}
-    .st-key-section_nav button:focus-visible {{
-        outline: 4px solid {INK} !important;
-        outline-offset: -6px;
-    }}
-    .st-key-section_nav button p {{
-        font-family: {DISPLAY_FONT} !important;
-        font-weight: 700 !important;
-        color: inherit !important;
-    }}
+    .st-key-section_nav button:focus-visible {{ outline: 2px solid {ACCENT} !important; outline-offset: -4px; }}
+    .st-key-section_nav button p {{ font-family: {BODY_FONT} !important; font-weight: 500 !important; color: inherit !important; }}
 
-    .stMarkdown p, .stMarkdown li {{
-        line-height: 1.6;
-        text-align: justify;
-    }}
+    .stMarkdown p, .stMarkdown li {{ line-height: 1.75; text-align: justify; }}
+    .stMarkdown p:has(> strong:only-child) {{ text-align: center; }}
 
     .section-caption {{
         text-align: justify;
         text-align-last: center;
-        color: {INK};
-        font-size: 0.88rem;
-        font-weight: 500;
-        background: {PANEL};
-        border: {BORDER};
-        padding: 0.8rem 1.1rem;
-        margin-bottom: 1.4rem;
+        color: {INK_SOFT};
+        font-size: 0.92rem;
+        line-height: 1.7;
+        margin: 0 0 1.6rem 0;
     }}
 
-    div[data-testid="stExpander"] {{
-        border: {BORDER};
-        border-radius: 0;
+    .prereg-heading {{
+        font-family: {DISPLAY_FONT};
+        font-size: 1.9rem;
+        font-weight: 500;
+        line-height: 1.25;
+        text-align: center;
+        margin: 2.4rem 0 0 0;
+    }}
+    .st-key-prereg_lead {{
         background: {PANEL};
-        box-shadow: {SHADOW};
+        border: 1px solid {RULE};
+        border-radius: 4px;
+        padding: 1.2rem 1.6rem 0.4rem 1.6rem;
+        margin: 1.2rem 0 0.6rem 0;
+    }}
+    .prereg-card {{
+        display: flex;
+        gap: 1.4rem;
+        align-items: flex-start;
+        background: {PANEL};
+        border: 1px solid {RULE};
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+        padding: 1.4rem 1.6rem 1.2rem 1.6rem;
         margin-top: 1.2rem;
     }}
-    div[data-testid="stExpander"] summary {{
+    .prereg-num {{
+        flex-shrink: 0;
+        width: 2.6rem;
+        height: 2.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid {INK};
+        border-radius: 2px;
         font-family: {DISPLAY_FONT};
-        font-weight: 700;
+        font-size: 1.25rem;
+        font-weight: 600;
     }}
+    .prereg-title {{ font-family: {DISPLAY_FONT}; font-size: 1.3rem; font-weight: 600; line-height: 1.3; margin-bottom: 0.5rem; }}
+    .prereg-summary {{ color: {INK_SOFT}; font-size: 0.98rem; line-height: 1.7; }}
+    .prereg-tag {{
+        display: inline-block;
+        margin-top: 0.8rem;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: {WARNING};
+        border: 1px solid {WARNING};
+        border-radius: 2px;
+        padding: 0.1rem 0.6rem;
+    }}
+    .st-key-prereg div[data-testid="stExpander"] {{ margin-top: 0; border-radius: 0 0 4px 4px; }}
+    div[data-testid="stExpander"] {{
+        border: 1px solid {RULE};
+        border-radius: 4px;
+        background: {PANEL};
+        margin-top: 1.4rem;
+    }}
+    div[data-testid="stExpander"] summary {{ font-family: {BODY_FONT}; font-weight: 500; }}
+    div[data-testid="stExpander"] .stMarkdown p,
+    div[data-testid="stExpander"] .stMarkdown li,
+    div[data-testid="stExpander"] .stMarkdown p:has(> strong:only-child) {{ text-align: left; }}
     div[data-testid="stAlert"] {{
-        border: {BORDER};
-        border-radius: 0;
+        border: 1px solid {RULE};
+        border-radius: 4px;
         background: {HIGHLIGHT};
         color: {INK};
     }}
 
     .memo-sheet {{
         background: {PANEL};
-        border: {BORDER};
-        box-shadow: 10px 10px 0 {INK};
-        padding: 2rem 2.2rem 1.8rem 2.2rem;
-        margin: 0 auto 1.8rem auto;
-        max-width: 780px;
+        border: 1px solid {RULE};
+        border-radius: 4px;
+        padding: 3rem 3.2rem 2.6rem 3.2rem;
+        margin: 0 auto 2rem auto;
+        max-width: 760px;
     }}
-    .memo-head {{
-        border-bottom: {BORDER};
-        padding-bottom: 1rem;
-        margin-bottom: 1.5rem;
-    }}
-    .memo-head-row {{
-        display: flex;
-        gap: 0.9rem;
-        font-family: {DATA_FONT};
-        font-size: 0.82rem;
-        margin-bottom: 0.4rem;
-    }}
+    .memo-head {{ border-bottom: 1px solid {RULE}; padding-bottom: 1.3rem; margin-bottom: 2rem; }}
+    .memo-head-row {{ display: flex; gap: 1.2rem; font-size: 0.9rem; margin-bottom: 0.5rem; }}
     .memo-head-row:last-child {{ margin-bottom: 0; }}
-    .memo-k {{
-        background: {INK};
-        color: #FFFFFF;
-        width: 3.4rem;
-        flex-shrink: 0;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-weight: 700;
-        text-align: center;
-    }}
-    .memo-v {{ color: {INK}; font-weight: 700; }}
+    .memo-k {{ color: {INK_SOFT}; width: 3.2rem; flex-shrink: 0; }}
+    .memo-v {{ color: {INK}; font-weight: 500; }}
     .memo-body {{
-        text-align: justify;
-        line-height: 1.65;
+        text-align: left;
+        line-height: 1.8;
         color: {INK};
-        font-size: 0.98rem;
-        font-weight: 500;
-        margin-bottom: 1.3rem;
+        font-size: 1rem;
+        margin-bottom: 1.8rem;
     }}
     .memo-section-title {{
-        display: inline-block;
         font-family: {DISPLAY_FONT};
-        text-transform: uppercase;
-        font-size: 0.84rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        margin: 0 0 0.8rem 0;
-        padding: 0.2rem 0.7rem;
-        background: {HIGHLIGHT};
-        border: 3px solid {INK};
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 0 0 0.9rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid {RULE};
     }}
     .memo-list {{
-        text-align: justify;
-        line-height: 1.65;
+        text-align: left;
+        line-height: 1.8;
         padding-left: 1.2rem;
-        margin-bottom: 1.4rem;
+        margin-bottom: 1.8rem;
         color: {INK};
-        font-size: 0.98rem;
-        font-weight: 500;
+        font-size: 1rem;
     }}
     .memo-stat-grid {{
         display: flex;
-        border: {BORDER};
-        margin-bottom: 1.4rem;
+        border: 1px solid {RULE};
+        border-radius: 4px;
+        margin-bottom: 1.8rem;
     }}
-    .memo-stat-cell {{
-        flex: 1;
-        padding: 0.95rem 1.1rem;
-        border-right: {BORDER};
-    }}
+    .memo-stat-cell {{ flex: 1 1 auto; padding: 1.2rem 1.4rem; border-right: 1px solid {RULE}; }}
     .memo-stat-cell:last-child {{ border-right: none; }}
-    .memo-stat-label {{
-        font-family: {DISPLAY_FONT};
-        font-size: 0.74rem;
-        color: {INK};
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.45rem;
-        font-weight: 700;
-    }}
-    .memo-stat-value {{
-        display: inline-block;
-        font-family: {DATA_FONT};
-        font-size: 1.3rem;
-        font-weight: 700;
-        color: {INK};
-        padding: 0.05rem 0.45rem;
-        border: 3px solid transparent;
-    }}
-    .memo-stat-value.good {{ background: {SUCCESS_FILL}; border-color: {INK}; }}
-    .memo-stat-value.bad {{ background: {DANGER_FILL}; border-color: {INK}; }}
-    .memo-stat-note {{
-        font-family: {DATA_FONT};
-        font-size: 0.74rem;
-        font-weight: 500;
-        color: {INK_SOFT};
-        margin-top: 0.4rem;
-        line-height: 1.5;
-    }}
+    .memo-stat-label {{ font-size: 0.84rem; color: {INK_SOFT}; margin-bottom: 0.5rem; font-weight: 500; }}
+    .memo-stat-value {{ font-family: {DISPLAY_FONT}; font-size: 1.6rem; font-weight: 500; color: {INK}; }}
+    .memo-stat-value.good {{ color: {SUCCESS}; }}
+    .memo-stat-value.bad {{ color: {DANGER}; }}
+    .memo-stat-note {{ font-size: 0.78rem; color: {INK_SOFT}; margin-top: 0.5rem; line-height: 1.55; }}
 
-    div[data-testid="stDownloadButton"] {{
-        display: flex;
-        justify-content: center;
-        margin-bottom: 2.2rem;
-    }}
+    div[data-testid="stDownloadButton"] {{ display: flex; justify-content: center; margin-bottom: 2.4rem; }}
     div[data-testid="stDownloadButton"] button {{
-        font-family: {DISPLAY_FONT};
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-size: 0.86rem;
-        border: {BORDER} !important;
-        border-radius: 0 !important;
-        background: {ACCENT} !important;
-        color: #FFFFFF !important;
-        box-shadow: 5px 5px 0 {INK};
-        padding: 0.65rem 1.6rem;
-        transition: transform 0.08s, box-shadow 0.08s;
+        font-family: {BODY_FONT};
+        font-weight: 500;
+        font-size: 0.94rem;
+        border: 1px solid {INK} !important;
+        border-radius: 2px !important;
+        background: {INK} !important;
+        color: {PANEL} !important;
+        padding: 0.65rem 1.8rem;
+        transition: background 0.15s, border-color 0.15s;
     }}
     div[data-testid="stDownloadButton"] button:hover {{
-        background: {HIGHLIGHT} !important;
-        color: {INK} !important;
-        transform: translate(3px, 3px);
-        box-shadow: 2px 2px 0 {INK};
+        background: {ACCENT} !important;
+        border-color: {ACCENT} !important;
+        color: {PANEL} !important;
     }}
-    div[data-testid="stDownloadButton"] button:active {{
-        transform: translate(5px, 5px);
-        box-shadow: 0 0 0 {INK};
-    }}
-    div[data-testid="stDownloadButton"] button:focus-visible {{
-        outline: 4px solid {INK};
-        outline-offset: 3px;
-    }}
+    div[data-testid="stDownloadButton"] button:focus-visible {{ outline: 2px solid {ACCENT}; outline-offset: 3px; }}
 
     div[data-testid="stPlotlyChart"] {{
         background: {PANEL};
-        border: {BORDER};
-        box-shadow: {SHADOW};
-        padding: 0.4rem;
+        border: 1px solid {RULE};
+        border-radius: 4px;
+        padding: 0.8rem;
         margin-bottom: 1.2rem;
     }}
 
     .app-footer {{
-        margin-top: 1.4rem;
-        padding: 1rem 1.2rem;
-        background: {INK};
-        color: #FFFFFF;
-        font-size: 0.8rem;
-        font-weight: 500;
+        margin-top: 2.4rem;
+        padding-top: 1.4rem;
+        border-top: 1px solid {RULE};
+        color: {INK_SOFT};
+        font-size: 0.82rem;
         display: flex;
         justify-content: center;
-        gap: 1.8rem;
+        gap: 2rem;
         flex-wrap: wrap;
         text-align: center;
     }}
-    .app-footer a {{ color: {HIGHLIGHT}; font-weight: 700; text-decoration: underline; }}
+    .app-footer a {{ color: {INK}; text-decoration: underline; text-underline-offset: 3px; }}
 
     @media (max-width: 720px) {{
         .stat-row, .memo-stat-grid {{ flex-direction: column; }}
-        .stat-cell, .memo-stat-cell {{ border-right: none; border-bottom: {BORDER}; }}
+        .stat-cell, .memo-stat-cell {{ border-right: none; border-bottom: 1px solid {RULE}; }}
         .stat-cell:last-child, .memo-stat-cell:last-child {{ border-bottom: none; }}
-        .masthead h1 {{ font-size: 2rem; }}
+        .masthead h1 {{ font-size: 2.1rem; }}
+        .hero, .memo-sheet {{ padding-left: 1.4rem; padding-right: 1.4rem; }}
+        .hero-meta {{ margin-left: -1.4rem; margin-right: -1.4rem; padding-left: 1.4rem; padding-right: 1.4rem; }}
     }}
-
-    @media (prefers-reduced-motion: reduce) {{
-        * {{ transition: none !important; }}
-    }}
+    @media (prefers-reduced-motion: reduce) {{ * {{ transition: none !important; }} }}
     </style>
     """,
     unsafe_allow_html=True,
 )
-
 
 def stat_row(stats, compact=False):
     """Render a row of statistics as hard-bordered columns, sharing one
@@ -533,6 +442,58 @@ def stat_row(stats, compact=False):
 def badge(text, tone="neutral", small=False):
     size_class = "sm" if small else ""
     return f'<span class="badge {tone} {size_class}">{text}</span>'
+
+
+def render_preregistration(text, power):
+    if not text:
+        st.info("docs/PREREGISTRATION.md was not found.")
+        return
+    parts = re.split(r"^## (\d+)\. (.+)$", text, flags=re.M)
+    sections = {
+        int(parts[i]): (parts[i + 1].strip(), parts[i + 2].strip())
+        for i in range(1, len(parts) - 2, 3)
+    }
+    if len(sections) < 9:
+        with st.expander("Read the full preregistration document"):
+            st.markdown(text)
+        return
+
+    mde = f"BRL {power['primary']['mde_absolute_brl']:.0f}"
+    margin = f"{power['guardrail']['non_inferiority_margin_absolute'] * 100:.1f}pp"
+    n = f"{power['required_n_per_arm']:,}"
+    total = f"{power['required_total_sellers']:,}"
+    summaries = {
+        1: "Free shipping should raise a seller's average order value without meaningfully raising delivery complaints. The direction was stated before any data existed.",
+        2: "The primary metric is average order value per seller. The guardrail is the share of orders reviewed 2 stars or below. Whole sellers are randomized, not individual orders, so one seller's policy cannot leak across arms.",
+        3: f"The smallest lift worth acting on is {mde}, just above the roughly BRL 23 of freight a seller absorbs. Complaints may rise by at most {margin} before the gain stops being worth it.",
+        4: f"{n} sellers per arm ({total} in total) gives {power['power_target'] * 100:.0f}% power at alpha {power['alpha']}. The order value test needs the most sellers, so it sets the size ({power['binding_constraint']}).",
+        5: f"Sellers are assigned 1:1 by simple random draw, with no stratification. At {n} per arm, category mix balances on its own.",
+        6: "The analysis runs once, on the full sample, with no interim looks. The code refuses to run on a partial dataset, so nobody can stop early on a lucky result.",
+        7: "Welch's t-test on each seller's mean order value. It was chosen before seeing data because free shipping may change the spread of order values between arms.",
+        8: f"A one-sided non-inferiority test on each seller's complaint rate against the {margin} margin. The guardrail passes only when the data show the gap is below the margin.",
+        9: "This file was committed to git before any simulation code, so the git log proves the design came first.",
+    }
+
+    title_match = re.search(r"^# (.+)$", parts[0], flags=re.M)
+    heading = title_match.group(1).strip() if title_match else "Preregistration"
+    lead = re.sub(r"^# .*\n", "", parts[0]).strip()
+    st.markdown(f'<div class="prereg-heading">{heading}</div>', unsafe_allow_html=True)
+    with st.container(key="prereg_lead"):
+        st.markdown(lead)
+        st.markdown("Each section below opens with a plain-language summary. Open a section to read the exact preregistered wording.")
+
+    with st.container(key="prereg"):
+        for num in range(1, 10):
+            title, body = sections[num]
+            tag = '<span class="prereg-tag">Amended before analysis</span>' if num == 8 else ""
+            st.markdown(
+                f'<div class="prereg-card"><div class="prereg-num">{num}</div>'
+                f'<div class="prereg-main"><div class="prereg-title">{title}</div>'
+                f'<div class="prereg-summary">{summaries[num]}</div>{tag}</div></div>',
+                unsafe_allow_html=True,
+            )
+            with st.expander("Read the full section"):
+                st.markdown(body)
 
 
 @st.cache_data
@@ -711,8 +672,7 @@ if active_section == "Design":
             unsafe_allow_html=True,
         )
 
-        with st.expander("Read the full preregistration document"):
-            st.markdown(prereg_text)
+        render_preregistration(prereg_text, power)
 
 elif active_section == "Results":
     if not has_results or not power:
@@ -738,7 +698,7 @@ elif active_section == "Results":
             fig.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[p["control_mean_aov"], p["treatment_mean_aov"]],
-                marker=dict(color=[NEUTRAL, treatment_color], line=dict(color=INK, width=3)),
+                marker=dict(color=[NEUTRAL, treatment_color], line=dict(color=INK, width=1.5)),
                 text=[f"R$ {p['control_mean_aov']:.2f}", f"R$ {p['treatment_mean_aov']:.2f}"],
                 textposition="outside",
                 textfont=dict(color=INK, family=CHART_FONT, size=13),
@@ -746,7 +706,7 @@ elif active_section == "Results":
             mde_line = p["control_mean_aov"] + mde
             fig.add_hline(
                 y=mde_line,
-                line_dash="dash", line_width=3, line_color=INK,
+                line_dash="dash", line_width=1.5, line_color=INK,
                 annotation_text=f"preregistered MDE (+R$ {mde:.0f})",
                 annotation_font=dict(color=INK, family=CHART_FONT, size=11),
                 annotation_position="top left",
@@ -754,11 +714,11 @@ elif active_section == "Results":
             top = max(p["treatment_mean_aov"], mde_line)
             fig.update_layout(
                 template="plotly_white",
-                plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor=PANEL, paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family=CHART_FONT, color=INK, size=12),
                 yaxis_title="Mean AOV (R$)",
-                xaxis=dict(showline=True, linewidth=3, linecolor=INK),
-                yaxis=dict(gridcolor=GRID, showline=True, linewidth=3, linecolor=INK, range=[0, top * 1.2]),
+                xaxis=dict(showline=True, linewidth=1, linecolor=RULE),
+                yaxis=dict(gridcolor=GRID, showline=True, linewidth=1, linecolor=RULE, range=[0, top * 1.2]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
             st.plotly_chart(fig, width='stretch')
@@ -769,7 +729,7 @@ elif active_section == "Results":
             fig2.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[g["control_complaint_rate"] * 100, g["treatment_complaint_rate"] * 100],
-                marker=dict(color=[NEUTRAL, DANGER_FILL if breach else SUCCESS_FILL], line=dict(color=INK, width=3)),
+                marker=dict(color=[NEUTRAL, DANGER_FILL if breach else SUCCESS_FILL], line=dict(color=INK, width=1.5)),
                 text=[f"{g['control_complaint_rate']*100:.1f}%", f"{g['treatment_complaint_rate']*100:.1f}%"],
                 textposition="inside",
                 insidetextanchor="end",
@@ -778,7 +738,7 @@ elif active_section == "Results":
             ceiling_value = g["control_complaint_rate"] * 100 + g["non_inferiority_margin"] * 100
             fig2.add_hline(
                 y=ceiling_value,
-                line_dash="dash", line_width=3, line_color=DANGER,
+                line_dash="dash", line_width=1.5, line_color=DANGER,
                 annotation_text="non-inferiority ceiling",
                 annotation_font=dict(color=DANGER, family=CHART_FONT, size=11),
                 annotation_position="top left",
@@ -786,11 +746,11 @@ elif active_section == "Results":
             max_bar = max(g["control_complaint_rate"], g["treatment_complaint_rate"]) * 100
             fig2.update_layout(
                 template="plotly_white",
-                plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor=PANEL, paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family=CHART_FONT, color=INK, size=12),
                 yaxis_title="Complaint rate (%)",
-                xaxis=dict(showline=True, linewidth=3, linecolor=INK),
-                yaxis=dict(gridcolor=GRID, showline=True, linewidth=3, linecolor=INK, range=[0, max(ceiling_value, max_bar) * 1.18]),
+                xaxis=dict(showline=True, linewidth=1, linecolor=RULE),
+                yaxis=dict(gridcolor=GRID, showline=True, linewidth=1, linecolor=RULE, range=[0, max(ceiling_value, max_bar) * 1.18]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
             st.plotly_chart(fig2, width='stretch')
@@ -816,33 +776,33 @@ elif active_section == "Recovery check":
         )
 
         def recovery_chart(title, ci_low, ci_high, point_estimate, true_value, unit_fmt, recovered, x_suffix=""):
-            color = SUCCESS_FILL if recovered else DANGER_FILL
+            color = SUCCESS if recovered else DANGER
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=[ci_low, point_estimate, ci_high],
                 y=["Estimate"] * 3,
                 mode="lines+markers",
-                line=dict(color=color, width=5),
-                marker=dict(size=[12, 18, 12], color=color, line=dict(color=INK, width=3)),
+                line=dict(color=color, width=2.5),
+                marker=dict(size=[9, 13, 9], color=color, line=dict(color=INK, width=1.5)),
                 name="Point estimate, 95% CI",
                 hovertemplate="%{x" + x_suffix + "}<extra></extra>",
             ))
             fig.add_vline(
                 x=true_value,
-                line_dash="dash", line_width=3, line_color=INK,
+                line_dash="dash", line_width=1.5, line_color=INK,
                 annotation_text=f"True value {unit_fmt(true_value)}",
                 annotation_font=dict(color=INK, family=CHART_FONT, size=11),
                 annotation_position="top",
             )
             fig.update_layout(
                 template="plotly_white",
-                title=dict(text=title, font=dict(family=CHART_FONT, size=13, color=INK), x=0),
-                plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
+                title=dict(text=title, font=dict(family=CHART_FONT, size=13, color=INK), x=0.5, xanchor="center"),
+                plot_bgcolor=PANEL, paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family=CHART_FONT, color=INK, size=12),
                 height=190,
                 margin=dict(t=48, b=30, l=90, r=30),
                 yaxis=dict(visible=True, showgrid=False, showline=False),
-                xaxis=dict(gridcolor=GRID, zeroline=False, showline=True, linewidth=3, linecolor=INK),
+                xaxis=dict(gridcolor=GRID, zeroline=False, showline=True, linewidth=1, linecolor=RULE),
                 showlegend=False,
             )
             return fig
@@ -921,7 +881,7 @@ elif active_section == "Memo":
             f'<li>Randomly split {n_total:,} sellers into two equal groups: '
             'standard shipping vs. free shipping</li>',
             '<li>Measured whether free shipping changed average order value</li>',
-            '<li>Separately checked whether it made delivery complaints worse</li>',
+            '<li>Separately checked whether it made delivery complaints worse or better</li>',
             '</ul>',
             '<div class="memo-section-title">Results at a glance</div>',
             '<div class="memo-stat-grid">',
