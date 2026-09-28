@@ -27,11 +27,26 @@ OUT_ASSIGNED = DATA / "simulated" / "assigned_experiment.csv"
 RANDOMIZATION_SEED = 71  # implementation detail; not tuned
 
 
-def main():
-    population = pd.read_csv(IN_POPULATION)
+def randomize(population, seed=RANDOMIZATION_SEED):
+    """
+    Pure assignment logic, no file I/O, so it can be unit-tested directly
+    against the real code path instead of a hand-copied reimplementation.
 
+    1:1 assignment requires an even seller count. This holds today because
+    simulate.py always sets n_sellers = n_per_arm * 2, but that guarantee
+    lives in simulate.py, not here: without this check, an odd-sized
+    population would silently give control one extra seller instead of
+    failing loudly.
+    """
     seller_ids = population["seller_id"].unique()
-    rng = np.random.default_rng(RANDOMIZATION_SEED)
+
+    if len(seller_ids) % 2 != 0:
+        raise ValueError(
+            f"Population has {len(seller_ids)} sellers, which is odd; a 1:1 "
+            "split requires an even seller count. Check simulate.py's sizing."
+        )
+
+    rng = np.random.default_rng(seed)
     shuffled = rng.permutation(seller_ids)
 
     half = len(shuffled) // 2
@@ -63,6 +78,13 @@ def main():
 
     # Sanity: confirm no counterfactual column survived into the revealed frame.
     assert set(revealed.columns) == {"seller_id", "category", "arm", "aov", "complaint"}
+
+    return revealed
+
+
+def main():
+    population = pd.read_csv(IN_POPULATION)
+    revealed = randomize(population, seed=RANDOMIZATION_SEED)
 
     OUT_ASSIGNED.parent.mkdir(parents=True, exist_ok=True)
     revealed.to_csv(OUT_ASSIGNED, index=False)

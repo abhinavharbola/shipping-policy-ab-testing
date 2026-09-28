@@ -58,7 +58,19 @@ def main():
     rng = np.random.default_rng(SIM_SEED)
 
     categories = calibration["category_names"]
-    cat_weights = np.array([calibration["category_weights"][c] for c in categories])
+    if "category_weights_seller_level" in calibration:
+        weights_key = "category_weights_seller_level"
+    else:
+        # calibration_params.json predates the seller-level weights fix
+        # (see calibration.py); fall back to the order-level weights it
+        # used to conflate with them, rather than failing outright.
+        print(
+            "WARNING: calibration_params.json has no "
+            "category_weights_seller_level; falling back to order-level "
+            "category_weights. Re-run with --recalibrate to fix this."
+        )
+        weights_key = "category_weights"
+    cat_weights = np.array([calibration[weights_key][c] for c in categories])
     cat_weights = cat_weights / cat_weights.sum()
     seller_category = rng.choice(categories, size=n_sellers, p=cat_weights)
     seller_ids = np.array([f"sim_seller_{i:05d}" for i in range(n_sellers)])

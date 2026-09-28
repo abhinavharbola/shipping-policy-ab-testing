@@ -108,9 +108,9 @@ whether it made delivery complaints worse.
 ## Order value result
 
 Sellers offering free shipping had an average order value of
-`R$ {primary['treatment_mean_aov']}`, versus `R$ {primary['control_mean_aov']}` for sellers on standard
-shipping. That's a lift of **`R$ {lift}`** (95% confidence interval: `R$ {ci_low}` to
-`R$ {ci_high}`). {significance_sentence}
+`R$ {primary['treatment_mean_aov']:.2f}`, versus `R$ {primary['control_mean_aov']:.2f}` for sellers on standard
+shipping. That's a lift of **`R$ {lift:.2f}`** (95% confidence interval: `R$ {ci_low:.2f}` to
+`R$ {ci_high:.2f}`). {significance_sentence}
 
 ## Complaint rate check (guardrail)
 

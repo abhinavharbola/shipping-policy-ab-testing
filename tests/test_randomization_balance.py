@@ -5,6 +5,9 @@ leaks a counterfactual outcome column into the revealed dataset.
 
 import numpy as np
 import pandas as pd
+import pytest
+
+from experiment.randomize import randomize
 
 
 def make_fake_population(n_sellers=1000, orders_per_seller=5, seed=1):
@@ -24,39 +27,12 @@ def make_fake_population(n_sellers=1000, orders_per_seller=5, seed=1):
     return pd.DataFrame(rows)
 
 
-def randomize_inline(population, seed):
-    seller_ids = population["seller_id"].unique()
-    rng = np.random.default_rng(seed)
-    shuffled = rng.permutation(seller_ids)
-    half = len(shuffled) // 2
-    treatment_sellers = set(shuffled[:half])
-    population = population.copy()
-    population["arm"] = np.where(
-        population["seller_id"].isin(treatment_sellers), "treatment", "control"
-    )
-    revealed_aov = np.where(
-        population["arm"] == "treatment", population["aov_treatment"], population["aov_control"]
-    )
-    revealed_complaint = np.where(
-        population["arm"] == "treatment",
-        population["complaint_treatment"],
-        population["complaint_control"],
-    )
-    return pd.DataFrame({
-        "seller_id": population["seller_id"],
-        "category": population["category"],
-        "arm": population["arm"],
-        "aov": revealed_aov,
-        "complaint": revealed_complaint,
-    })
-
-
 def test_arms_are_balanced_across_repeated_seeds():
     population = make_fake_population()
     n_sellers = population["seller_id"].nunique()
     imbalances = []
     for seed in range(20):
-        revealed = randomize_inline(population, seed)
+        revealed = randomize(population, seed)
         n_treatment = revealed.loc[revealed["arm"] == "treatment", "seller_id"].nunique()
         imbalances.append(abs(n_treatment - n_sellers / 2))
     # exact 50/50 split by construction (even n_sellers, integer //2)
@@ -65,7 +41,7 @@ def test_arms_are_balanced_across_repeated_seeds():
 
 def test_revealed_dataset_has_no_counterfactual_columns():
     population = make_fake_population(n_sellers=200)
-    revealed = randomize_inline(population, seed=5)
+    revealed = randomize(population, seed=5)
     forbidden = {"aov_control", "aov_treatment", "complaint_control", "complaint_treatment"}
     assert forbidden.isdisjoint(set(revealed.columns))
 
@@ -82,8 +58,19 @@ def test_category_mix_is_roughly_similar_between_arms():
         "complaint_control": 0,
         "complaint_treatment": 0,
     })
-    revealed = randomize_inline(population, seed=42)
+    revealed = randomize(population, seed=42)
     treat_mix = revealed[revealed["arm"] == "treatment"]["category"].value_counts(normalize=True)
     ctrl_mix = revealed[revealed["arm"] == "control"]["category"].value_counts(normalize=True)
     for cat in ["a", "b", "c"]:
         assert abs(treat_mix[cat] - ctrl_mix[cat]) < 0.05
+
+
+def test_odd_population_raises_instead_of_silently_unbalancing():
+    """
+    Regression test: an odd seller count previously fell through to
+    `len(shuffled) // 2`, giving control one extra seller with no warning.
+    randomize() must now refuse instead of silently unbalancing the split.
+    """
+    population = make_fake_population(n_sellers=201)
+    with pytest.raises(ValueError, match="odd"):
+        randomize(population, seed=1)

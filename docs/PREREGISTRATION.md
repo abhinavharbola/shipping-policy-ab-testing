@@ -49,7 +49,7 @@ further; BRL 25 is treated as a floor, not an ideal target.
 
 **Guardrail non-inferiority margin: 2.0 percentage points absolute**,
 against a calibrated baseline complaint rate of 12.76%. That is roughly
-a 16% relative increase, picked as the threshold past which the
+a 15.7% relative increase, picked as the threshold past which the
 seller-satisfaction cost plausibly outweighs the AOV gain, independent
 of what the AOV result shows.
 
@@ -82,7 +82,7 @@ run live, but it does not change the statistical requirement.
 Simple random assignment by seller, 1:1 to free-shipping vs. standard
 shipping, **not stratified**. Stratifying by category was considered,
 since category is a real source of baseline AOV variance (see
-calibration data), but with 2,499 sellers per arm, simple randomization
+calibration data), but with 2,503 sellers per arm, simple randomization
 already balances category mix well in expectation, and stratification
 adds analysis complexity (needing a blocked estimator) for a balance
 problem that a sample of this size does not have. `randomize.py` seeds
@@ -92,7 +92,7 @@ a design decision, and is not tuned to produce a favorable split.
 ## 6. Stopping rule
 
 **Fixed horizon. No peeking.** The full pre-specified sample
-(2,499 sellers per arm) is generated and assigned once; the analysis
+(2,503 sellers per arm) is generated and assigned once; the analysis
 runs exactly once, on the complete dataset. `analyze.py` enforces this
 by refusing to run on a partial dataset (see `tests/`). Repeated peeking
 at results as data accrues, without a sequential-testing correction,

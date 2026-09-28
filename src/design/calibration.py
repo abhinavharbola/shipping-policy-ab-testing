@@ -126,6 +126,25 @@ def calibrate(table):
     seller_means = sub.groupby("seller_id")["aov"].mean()
     orders_per_seller = sub.groupby("seller_id").size()
     seller_level_aov_std = float(seller_means.std(ddof=1))
+
+    # Seller-level category weights, distinct from the order-level weights
+    # above. simulate.py draws one category per SIMULATED SELLER, which
+    # needs a seller-level distribution: how many real sellers are
+    # primarily in each category. Using the order-level weights for that
+    # (the original approach) overweights categories where individual
+    # sellers place many orders each, since a seller with 500 orders in
+    # one category counts 500 times toward that category's share instead
+    # of once. Each seller's category here is the mode of their own
+    # orders' categories (restricted to the categories kept above).
+    seller_primary_category = sub.groupby("seller_id")["category"].agg(
+        lambda s: s.mode().iloc[0]
+    )
+    seller_category_counts = seller_primary_category.value_counts().reindex(
+        category_names, fill_value=0
+    )
+    seller_weights = seller_category_counts.astype(float)
+    seller_weights = seller_weights / seller_weights.sum()
+
     calibration = {
         "source": "Olist Brazilian E-Commerce (olist_orders/items/reviews/products, "
         "delivered orders only). Used for descriptive calibration only; "
@@ -135,6 +154,13 @@ def calibrate(table):
         "n_categories_kept": len(category_names),
         "category_names": category_names,
         "category_weights": dict(zip(category_names, weights.round(4).tolist())),
+        "category_weights_note": "Order-level: each category's share of "
+        "kept orders. Kept for descriptive reference; simulate.py uses "
+        "category_weights_seller_level to draw a simulated seller's "
+        "category, since the unit being drawn is a seller, not an order.",
+        "category_weights_seller_level": dict(
+            zip(category_names, seller_weights.round(4).tolist())
+        ),
         "per_category": per_category,
         "overall": {
             "aov_mean": round(overall_aov_mean, 2),

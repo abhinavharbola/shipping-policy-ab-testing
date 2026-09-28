@@ -53,7 +53,7 @@ Full section-by-section design rationale is documented in [`docs/PREREGISTRATION
 | Primary metric       | Mean per-seller AOV                       | Matches the unit of randomization                           |
 | Primary MDE          | R$25 absolute lift                        | Grounded in the ~R$23 average freight cost a seller absorbs |
 | Guardrail metric     | Delivery-complaint rate, review score ≤ 2 | Prevents an AOV win from masking a satisfaction loss        |
-| Guardrail margin     | 2.0pp non-inferiority                     | Represents an approximately 15% relative increase           |
+| Guardrail margin     | 2.0pp non-inferiority                     | Represents approximately a 15.7% relative increase          |
 | Randomization unit   | Seller, not order                         | Avoids violating SUTVA within a seller's order stream       |
 | Primary test         | Welch's t-test                            | Allows for unequal variance between arms                    |
 | Guardrail test       | One-sided, margin-shifted z-test, seller-clustered | Tests non-inferiority against the margin directly, not just against zero |
@@ -70,7 +70,7 @@ Full section-by-section design rationale is documented in [`docs/PREREGISTRATION
 ## Data
 
 * **`data/raw/`** contains the real Olist CSVs. They are user-supplied and gitignored. They are used only by `calibration.py` for descriptive statistics.
-* **`data/calibration/`** contains the committed `calibration_params.json`, which is the only bridge between the real dataset and the simulation. It contains category weights, AOV distribution parameters, and the baseline complaint rate.
+* **`data/calibration/`** contains the committed `calibration_params.json`, which is the only bridge between the real dataset and the simulation. It contains AOV distribution parameters, the baseline complaint rate, and two distinct category-weight fields: `category_weights` (each category's share of orders) and `category_weights_seller_level` (each category's share of sellers). `simulate.py` uses the seller-level weights to draw a simulated seller's category, since the unit being drawn is a seller, not an order; using the order-level weights for that would overweight categories where individual sellers place many orders each.
 * **`data/simulated/`** contains the synthetic population and randomized assignment. These files are regenerable from the fixed seed and are gitignored, except for the committed `true_effects.json`.
 * **`results/`** contains the power analysis, analysis results, recovery check, and stakeholder memo.
 
@@ -114,7 +114,7 @@ The Olist dataset is reused from other portfolio projects, but its role here is 
 │   ├── power_analysis.json
 │   ├── analysis_results.json
 │   ├── recovery_check.json
-│   └── stakeholder_memo.*
+│   └── memo.md
 │
 ├── scripts/
 │   └── run_pipeline.py
@@ -183,14 +183,15 @@ It never regenerates or modifies `docs/PREREGISTRATION.md`.
 `tests/` is the project's core differentiator, not a checkbox.
 
 * **`test_power_analysis.py`** validates the power calculation against a known textbook example, Cohen's d = 0.5 → approximately 64 observations per arm.
-* **`test_randomization_balance.py`** checks treatment/control balance across repeated seeds and verifies that counterfactual columns do not leak into the analysis dataset.
+* **`test_randomization_balance.py`** checks treatment/control balance across repeated seeds, verifies that counterfactual columns do not leak into the analysis dataset, and confirms `randomize()` refuses an odd-sized population instead of silently giving control one extra seller.
 * **`test_stopping_rule.py`** confirms that `analyze()` rejects partial or over-accrued datasets.
 * **`test_recovery_check_catches_bugs.py`** is a mutation test that deliberately breaks randomization and verifies that the ground-truth recovery check detects the resulting error.
 * **`test_no_raw_data_leak.py`** uses AST inspection to verify that raw data and the known injected effect cannot reach `analyze.py` or `reporting.py`.
-* **`test_memo_rendering.py`** protects against a real Streamlit markdown-rendering bug that silently broke currency formatting.
+* **`test_memo_rendering.py`** protects against a real Streamlit markdown-rendering bug that silently broke currency formatting, and pins a second real bug: the memo previously interpolated currency values without a `:.2f` format spec, so a value like `24.10` could render as `R$ 24.1`.
 * **`test_guardrail_clustering_fix.py`** pins the guardrail-test fix (`docs/PREREGISTRATION.md` section 8 amendment): the unit of analysis is the seller, not the order, and the breach decision tests the preregistered margin directly rather than a from-zero p-value combined with a separate point-estimate check.
+* **`test_calibration_category_weights.py`** pins the seller-level vs. order-level category-weight distinction in `calibration.py`: a category with few high-volume sellers and one with many low-volume sellers must rank oppositely under the two weightings, confirming `simulate.py` isn't drawing a simulated seller's category from an order-level distribution.
 
-Current committed status: **26/26 tests passing** (`test_power_analysis.py`'s 4 tests are unmodified by the guardrail fix; `pyflakes` clean on all touched files).
+Current committed status: **30/30 tests passing** (`test_power_analysis.py`'s 4 tests are unmodified by the guardrail fix; `pyflakes` clean on all touched files).
 
 ## Results
 
@@ -214,6 +215,7 @@ This is one seeded simulation run, not evidence that the method generalizes to e
 
 ## Known limitations
 
+* **The committed `calibration_params.json` predates the seller-level category-weights fix.** `calibration.py` now emits `category_weights_seller_level` alongside the original order-level `category_weights` (see [Data](#data)); the committed file, generated before this fix, has only the order-level field. `simulate.py` falls back to it with a printed warning rather than failing. Regenerating with `--recalibrate` against the real Olist CSVs would populate the correct field and is the honest next step, not a cosmetic one, since it changes which categories simulated sellers are drawn into.
 * **Recovery is necessary, not sufficient.** A single seeded confidence interval is expected to contain the true effect roughly 95% of the time. Passing or failing that check alone does not establish that the method is correct or generalizes.
 * **Seller-level randomization assumes no cross-seller interference.** Competition for the same customers or marketplace-level effects could cause treatment effects to leak between arms.
 * **Guardrail test power sizing stays order-level.** `power_analysis.py` still sizes the guardrail using a pooled, order-level proportions test, deliberately as a conservative (not undersized) planning approximation (see `docs/PREREGISTRATION.md` section 4). The actual analysis (`analyze.py`) now uses a seller-clustered, margin-shifted non-inferiority test that matches the randomization unit; a fully matched seller-level power calculation would require per-seller complaint-rate variance from the raw data, which this project's calibration step does not currently compute.

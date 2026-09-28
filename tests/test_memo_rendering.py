@@ -20,8 +20,8 @@ from experiment import reporting
 def make_fake_results():
     return {
         "primary": {
-            "n_treatment_sellers": 2499,
-            "n_control_sellers": 2499,
+            "n_treatment_sellers": 2503,
+            "n_control_sellers": 2503,
             "treatment_mean_aov": 171.13,
             "control_mean_aov": 139.54,
             "point_estimate_lift": 31.59,
@@ -64,6 +64,43 @@ def test_memo_still_contains_the_currency_values():
     assert "171.13" in memo
     assert "31.59" in memo
     assert "`R$" in memo
+
+
+def make_fake_results_unclean_decimals():
+    """
+    Values whose second decimal digit is zero, so plain f-string
+    interpolation of a Python float would silently drop it (24.1 instead
+    of 24.10). Regression test for a real bug: build_memo previously
+    interpolated currency figures without a :.2f format spec, so the memo
+    only showed two decimal places by coincidence when the underlying
+    numbers happened to round cleanly.
+    """
+    results = make_fake_results()
+    results["primary"] = {
+        **results["primary"],
+        "treatment_mean_aov": 171.10,
+        "control_mean_aov": 139.50,
+        "point_estimate_lift": 31.60,
+        "ci_95_low": 24.10,
+        "ci_95_high": 39.00,
+    }
+    return results
+
+
+def test_memo_always_shows_two_decimal_places_for_currency():
+    memo = reporting.build_memo(make_fake_results_unclean_decimals())
+    assert "R$ 171.10" in memo
+    assert "R$ 139.50" in memo
+    assert "R$ 31.60" in memo
+    assert "R$ 24.10" in memo
+    assert "R$ 39.00" in memo
+    # Guard against the regression this pins: a bare float interpolation
+    # would produce these truncated, trailing-zero-dropped forms instead.
+    assert "R$ 171.1`" not in memo
+    assert "R$ 139.5`" not in memo
+    assert "R$ 31.6`" not in memo
+    assert "R$ 24.1`" not in memo
+    assert "R$ 39.0`" not in memo
 
 
 def make_fake_results_not_significant():
