@@ -77,6 +77,25 @@ seller base is smaller than what full power would need, which is a
 real-world feasibility note worth surfacing to stakeholders were this
 run live, but it does not change the statistical requirement.
 
+**Amendment (post-analysis, wording only).** After the first complete
+run, the guardrail sizing described above was found to be mischaracterized
+in two ways. First, it is not conservative. It sizes for detecting a
+margin-sized difference against zero using pooled order-level counts,
+which ignores within-seller correlation and answers a different question
+from the one-sided, seller-clustered non-inferiority test that section 8
+specifies. In the committed run that test had a standard error of about
+0.54 percentage points, which implies roughly 43% power to establish
+non-inferiority when the true gap is 1.2 percentage points (a
+back-of-envelope figure from one run, not a preregistered calculation).
+Second, the table's reference to "see §6" for the planned guardrail test
+should read §8. This amendment changes no sample size, metric, margin,
+test, or decision rule: 2,503 sellers per arm remains the preregistered N
+and the guardrail verdict is unchanged. It was written after results were
+observed and is recorded so the correction is auditable, not to alter the
+design. A seller-level guardrail power calculation, which needs
+per-seller complaint-rate variance from calibration, is left as future
+work.
+
 ## 5. Randomization
 
 Simple random assignment by seller, 1:1 to free-shipping vs. standard

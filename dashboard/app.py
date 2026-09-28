@@ -485,7 +485,8 @@ def render_preregistration(text, power):
     with st.container(key="prereg"):
         for num in range(1, 10):
             title, body = sections[num]
-            tag = '<span class="prereg-tag">Amended before analysis</span>' if num == 8 else ""
+            tag_text = {4: "Wording corrected after analysis", 8: "Amended before analysis"}.get(num)
+            tag = f'<span class="prereg-tag">{tag_text}</span>' if tag_text else ""
             st.markdown(
                 f'<div class="prereg-card"><div class="prereg-num">{num}</div>'
                 f'<div class="prereg-main"><div class="prereg-title">{title}</div>'
@@ -881,7 +882,7 @@ elif active_section == "Memo":
             f'<li>Randomly split {n_total:,} sellers into two equal groups: '
             'standard shipping vs. free shipping</li>',
             '<li>Measured whether free shipping changed average order value</li>',
-            '<li>Separately checked whether it made delivery complaints worse or better</li>',
+            '<li>Separately checked whether it made delivery complaints worse</li>',
             '</ul>',
             '<div class="memo-section-title">Results at a glance</div>',
             '<div class="memo-stat-grid">',

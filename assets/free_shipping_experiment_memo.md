@@ -9,7 +9,7 @@ Hold off. The complaint rate rose more than the agreed threshold, regardless of 
 We randomly split 5006 sellers into two groups: half kept
 standard shipping, half switched to free shipping. We measured whether
 free shipping changed average order value, and separately checked
-whether it made delivery complaints worse.
+whether it made delivery complaints worse or better.
 
 ## Order value result
 

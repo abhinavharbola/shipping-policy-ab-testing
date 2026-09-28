@@ -12,7 +12,7 @@
     "required_n_per_arm_sellers": 2503
   },
   "guardrail": {
-    "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower), pooled order-level counts; note the planned analysis test itself is a one-sided, margin-shifted, seller-clustered non-inferiority test (see docs/PREREGISTRATION.md section 8), so this order-level two-sided sizing is a conservative (not undersized) planning approximation, not a sizing of the exact test that gets run. A seller-level power calculation would need per-seller complaint-rate variance, which calibration.py does not currently compute from the raw data.",
+    "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower), pooled order-level counts, sized to detect a margin-sized difference against zero. The planned analysis test is a one-sided, margin-shifted, seller-clustered non-inferiority test (see docs/PREREGISTRATION.md section 8), so this is an order-level planning approximation, not a power calculation for the test that runs: it ignores within-seller correlation and can understate the sellers that test needs (see the section 4 amendment). A seller-level power calculation would need per-seller complaint-rate variance, which calibration.py does not currently compute.",
     "unit_for_sizing": "order (pooled within arm)",
     "baseline_complaint_rate": 0.1276,
     "non_inferiority_margin_absolute": 0.02,
