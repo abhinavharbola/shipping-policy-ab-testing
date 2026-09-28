@@ -1,40 +1,16 @@
 """
-Step 8: Streamlit dashboard.
+Dashboard: neo-brutalist report view.
 
-Design system
---------------
-Brutalist, not decorative: pure white paper, near-black ink, 2px solid
-black borders on every panel, no border-radius anywhere, and a flat hard
-offset shadow (no blur) instead of soft elevation. Color is rationed to
-exactly one job - the verdict/guardrail status - using flat, saturated
-fills rather than soft tints, so a green or red block always means the
-same thing and nothing else on the page competes with it for attention.
+Flat paper background, white panels with 3px black borders, hard offset
+shadows with no blur, and saturated flat fills reserved for status and
+navigation. Buttons physically press into their shadow on hover. Space
+Grotesk and Archivo Black carry headings, Inter carries prose, and
+JetBrains Mono is used only for numeric data.
 
-Type: Space Grotesk (bold, uppercase, tracked-out) for headings, tab
-labels, and section titles - this is a report, not a form - Inter for
-body copy, and JetBrains Mono reserved strictly for numeric data:
-statistics, confidence intervals, seeds. Never for labels.
-
-Layout: there is no sidebar. Everything the sidebar used to hold
-(hypothesis, design parameters, verdict, seed) already lives on the main
-canvas - the hero panel, the stat rows, and the Design tab - so a second
-copy in a rail added nothing but clutter. The four tabs span the full
-width of the content frame edge to edge, evenly divided, instead of
-clustering in the middle. All prose (subtitle, reasoning, captions, memo
-body) is justified; headings and one-line data strings are not, since
-justification only does something useful across multiple lines.
-
-The verdict shown here is computed by calling `experiment.reporting`'s
-`recommendation()` directly on the already-computed analysis output, not
-by re-parsing the rendered memo.md text. That keeps "exactly one place
-the decision gets made" true without depending on the memo's markdown
-formatting staying byte-for-byte stable.
-
-Formatting conventions kept consistent throughout: currency (R$) always
-shows 2 decimal places; percentages and percentage-point deltas always
-show 1. Currency figures inside markdown are wrapped in backtick code
-spans so Streamlit's markdown renderer doesn't pair the dollar signs up
-as inline LaTeX math (see tests/test_memo_rendering.py).
+The verdict is computed by calling experiment.reporting.recommendation()
+on the analysis output, never by parsing memo.md. Currency always shows 2
+decimal places and percentages 1. Currency in markdown is wrapped in code
+spans so Streamlit does not read dollar signs as LaTeX.
 """
 
 import json
@@ -53,7 +29,7 @@ if str(SRC) not in sys.path:
 
 from experiment.reporting import next_step, recommendation  # noqa: E402
 
-PAGE_ICON = str(FAVICON_PATH) if FAVICON_PATH.is_file() else "\U0001F4E6"
+PAGE_ICON = str(FAVICON_PATH) if FAVICON_PATH.is_file() else "\u25A0"
 
 st.set_page_config(
     page_title="Free Shipping Experiment: Preregistered A/B Test",
@@ -62,23 +38,21 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ---------------------------------------------------------------------------
-# Design tokens
-# ---------------------------------------------------------------------------
-
-PAPER = "#FFFFFF"
+PAPER = "#E9EEFF"
 PANEL = "#FFFFFF"
-INK = "#0B0B0C"
-INK_SOFT = "#54585F"
-GRID = "#DADDE1"
+INK = "#000000"
+INK_SOFT = "#2B2B33"
+GRID = "#C9CDE0"
+ACCENT = "#4D6BFF"
+HIGHLIGHT = "#FFE14D"
 
-SUCCESS = "#0F8A5F"
-SUCCESS_FILL = "#2ED47A"
-WARNING = "#8A5D00"
-WARNING_FILL = "#FFC93C"
-DANGER = "#B3241C"
-DANGER_FILL = "#FF5A48"
-NEUTRAL = "#6B7280"
+SUCCESS = "#0A7A4B"
+SUCCESS_FILL = "#3DDC84"
+WARNING = "#7A5200"
+WARNING_FILL = "#FFD23F"
+DANGER = "#B3140A"
+DANGER_FILL = "#FF5C4D"
+NEUTRAL = "#B8BDD6"
 
 DISPLAY_FONT = "'Space Grotesk', 'Arial Black', sans-serif"
 TITLE_FONT = "'Archivo Black', 'Arial Black', sans-serif"
@@ -87,9 +61,8 @@ DATA_FONT = "'JetBrains Mono', 'SFMono-Regular', monospace"
 
 CHART_FONT = "JetBrains Mono"
 
-# ---------------------------------------------------------------------------
-# Global styles
-# ---------------------------------------------------------------------------
+BORDER = "3px solid " + INK
+SHADOW = "6px 6px 0 " + INK
 
 st.markdown(
     f"""
@@ -103,7 +76,11 @@ st.markdown(
 
     [data-testid="stAppViewContainer"] {{
         background-color: {PAPER};
+        background-image: radial-gradient({GRID} 1.5px, transparent 1.5px);
+        background-size: 22px 22px;
     }}
+
+    [data-testid="stHeader"] {{ background: transparent; }}
 
     [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] {{
         display: none !important;
@@ -111,7 +88,7 @@ st.markdown(
 
     .block-container {{
         padding-top: 2.4rem;
-        padding-bottom: 2rem;
+        padding-bottom: 2.4rem;
         max-width: 1120px;
         margin-left: auto;
         margin-right: auto;
@@ -122,144 +99,167 @@ st.markdown(
         color: {INK};
     }}
 
-    code {{ font-family: {DATA_FONT}; }}
+    code {{
+        font-family: {DATA_FONT};
+        background: {HIGHLIGHT};
+        color: {INK};
+        border: 2px solid {INK};
+        padding: 0.05rem 0.3rem;
+        border-radius: 0;
+    }}
 
-    /* ---- masthead: centered title, justified subtitle ---- */
     .masthead {{
+        background: {HIGHLIGHT};
+        border: {BORDER};
+        box-shadow: {SHADOW};
         text-align: center;
-        margin: 0 auto 1.8rem auto;
-        max-width: 760px;
-        padding-bottom: 1.4rem;
-        border-bottom: 3px solid {INK};
+        margin: 0 auto 2.2rem auto;
+        max-width: 820px;
+        padding: 1.6rem 2rem 1.7rem 2rem;
     }}
     .masthead .eyebrow {{
+        display: inline-block;
+        background: {INK};
+        color: #FFFFFF;
         font-family: {DATA_FONT};
         font-size: 0.78rem;
+        font-weight: 700;
         line-height: 1.8;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: {INK_SOFT};
-        margin: 0 0 0.8rem 0;
-        overflow: visible;
+        padding: 0.1rem 0.8rem;
+        margin: 0 0 0.9rem 0;
     }}
     .masthead h1 {{
         font-family: {TITLE_FONT};
-        font-weight: 300;
-        font-size: 2.5rem;
-        letter-spacing: -0.01em;
+        font-weight: 400;
+        font-size: 2.7rem;
+        letter-spacing: -0.02em;
         margin: 0 0 0.8rem 0;
-        line-height: 1.15;
+        line-height: 1.1;
+        padding: 0;
     }}
     .masthead .subtitle {{
-        color: {INK_SOFT};
+        color: {INK};
         font-size: 0.98rem;
+        font-weight: 500;
         line-height: 1.6;
         margin: 0 auto;
         text-align: justify;
         text-align-last: center;
     }}
 
-    /* ---- hero verdict panel ---- */
     .hero {{
         background: {PANEL};
-        border: 2px solid {INK};
-        box-shadow: 8px 8px 0 {INK};
-        padding: 1.8rem 1.9rem 0.2rem 1.9rem;
-        margin: 0 0 2.4rem 0;
+        border: {BORDER};
+        box-shadow: {SHADOW};
+        padding: 1.8rem 1.9rem 0 1.9rem;
+        margin: 0 0 1.6rem 0;
     }}
     .hero-top {{
         display: flex;
         justify-content: center;
-        margin-bottom: 0.9rem;
+        margin-bottom: 1rem;
     }}
     .badge {{
         display: inline-block;
-        font-family: {DISPLAY_FONT};
-        font-weight: 700;
-        font-size: 1.5rem;
+        font-family: {TITLE_FONT};
+        font-weight: 400;
+        font-size: 1.7rem;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
-        padding: 0.3rem 1.1rem;
-        border: 2px solid {INK};
+        letter-spacing: 0.04em;
+        padding: 0.3rem 1.3rem;
+        border: {BORDER};
+        box-shadow: 4px 4px 0 {INK};
         color: {INK};
+        transform: rotate(-1.5deg);
     }}
-    .badge.sm {{ font-size: 0.78rem; padding: 0.2rem 0.6rem; letter-spacing: 0.06em; }}
+    .badge.sm {{ font-size: 0.78rem; padding: 0.2rem 0.6rem; letter-spacing: 0.06em; box-shadow: 2px 2px 0 {INK}; }}
     .badge.good {{ background: {SUCCESS_FILL}; }}
     .badge.caution {{ background: {WARNING_FILL}; }}
     .badge.bad {{ background: {DANGER_FILL}; }}
-    .badge.neutral {{ background: #FFFFFF; }}
+    .badge.neutral {{ background: {PANEL}; }}
 
     .hero-reasoning {{
         color: {INK};
         font-size: 1rem;
+        font-weight: 500;
         line-height: 1.6;
         max-width: 70ch;
-        margin: 0 auto 0.9rem auto;
+        margin: 0 auto 1rem auto;
         text-align: justify;
         text-align-last: center;
     }}
+    .hero-reasoning:last-child {{ margin-bottom: 1.8rem; }}
     .hero-meta {{
-        color: {INK_SOFT};
-        font-size: 0.8rem;
-        margin-bottom: 1.1rem;
+        color: {INK};
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin: 0 -1.9rem 0 -1.9rem;
+        padding: 0.6rem 1rem;
+        background: {PAPER};
+        border-top: {BORDER};
         font-family: {DATA_FONT};
         text-align: center;
     }}
 
-    /* ---- reusable stat row ---- */
     .stat-row {{
         display: flex;
-        border-top: 2px solid {INK};
-        border-bottom: 2px solid {INK};
+        background: {PANEL};
+        border: {BORDER};
+        box-shadow: {SHADOW};
+        margin-bottom: 0.4rem;
     }}
     .stat-cell {{
         flex: 1;
-        padding: 1rem 1.2rem 1.1rem 1.2rem;
-        border-right: 2px solid {INK};
+        padding: 1.1rem 1.2rem 1.2rem 1.2rem;
+        border-right: {BORDER};
         text-align: center;
     }}
     .stat-cell:last-child {{ border-right: none; }}
     .stat-label {{
+        font-family: {DISPLAY_FONT};
         font-size: 0.78rem;
-        color: {INK_SOFT};
-        margin-bottom: 0.35rem;
-        font-weight: 600;
+        color: {INK};
+        margin-bottom: 0.5rem;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.05em;
     }}
     .stat-value {{
+        display: inline-block;
         font-family: {DATA_FONT};
         font-size: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
         color: {INK};
-        line-height: 1.2;
+        line-height: 1.25;
+        padding: 0.05rem 0.5rem;
+        border: 3px solid transparent;
     }}
-    .stat-value.good {{ color: {SUCCESS}; }}
-    .stat-value.caution {{ color: {WARNING}; }}
-    .stat-value.bad {{ color: {DANGER}; }}
+    .stat-value.good {{ background: {SUCCESS_FILL}; border-color: {INK}; }}
+    .stat-value.caution {{ background: {WARNING_FILL}; border-color: {INK}; }}
+    .stat-value.bad {{ background: {DANGER_FILL}; border-color: {INK}; }}
     .stat-note {{
         font-family: {DATA_FONT};
         font-size: 0.76rem;
+        font-weight: 500;
         color: {INK_SOFT};
-        margin-top: 0.4rem;
+        margin-top: 0.5rem;
         line-height: 1.5;
     }}
-    .stat-row.compact .stat-cell {{ padding-top: 0.75rem; padding-bottom: 0.75rem; }}
+    .stat-row.compact .stat-cell {{ padding-top: 0.8rem; padding-bottom: 0.85rem; }}
     .stat-row.compact .stat-value {{ font-size: 1.15rem; }}
 
-    /* ---- section nav: full-width, evenly divided, inverted on select ----
-       Built from real st.button widgets (not st.tabs) because Streamlit's
-       internal tab markup is not stable enough to reliably restyle - the
-       column layout below guarantees the four buttons split the frame
-       width evenly regardless of Streamlit version. ---- */
     .st-key-section_nav div[data-testid="stHorizontalBlock"] {{
-        border: 2px solid {INK};
-        margin-bottom: 1.8rem;
+        border: {BORDER};
+        box-shadow: {SHADOW};
+        background: {PANEL};
+        margin-bottom: 2rem;
         gap: 0 !important;
     }}
     .st-key-section_nav div[data-testid="column"] {{
         padding: 0 !important;
-        border-right: 2px solid {INK};
+        border-right: {BORDER};
     }}
     .st-key-section_nav div[data-testid="column"]:last-child {{
         border-right: none;
@@ -270,26 +270,31 @@ st.markdown(
     .st-key-section_nav button {{
         font-family: {DISPLAY_FONT} !important;
         font-weight: 700 !important;
-        font-size: 0.86rem !important;
+        font-size: 0.9rem !important;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        padding: 0.9rem 0 !important;
+        padding: 0.95rem 0 !important;
         border: none !important;
         border-radius: 0 !important;
         box-shadow: none !important;
         width: 100%;
+        transition: none;
     }}
     .st-key-section_nav button[kind="secondary"] {{
         background: {PANEL} !important;
         color: {INK} !important;
     }}
     .st-key-section_nav button[kind="primary"] {{
-        background: {INK} !important;
+        background: {ACCENT} !important;
         color: #FFFFFF !important;
     }}
-    .st-key-section_nav button:hover {{
-        background: {INK} !important;
-        color: #FFFFFF !important;
+    .st-key-section_nav button[kind="secondary"]:hover {{
+        background: {HIGHLIGHT} !important;
+        color: {INK} !important;
+    }}
+    .st-key-section_nav button:focus-visible {{
+        outline: 4px solid {INK} !important;
+        outline-offset: -6px;
     }}
     .st-key-section_nav button p {{
         font-family: {DISPLAY_FONT} !important;
@@ -305,22 +310,43 @@ st.markdown(
     .section-caption {{
         text-align: justify;
         text-align-last: center;
-        color: {INK_SOFT};
-        font-size: 0.86rem;
-        margin-bottom: 1.1rem;
+        color: {INK};
+        font-size: 0.88rem;
+        font-weight: 500;
+        background: {PANEL};
+        border: {BORDER};
+        padding: 0.8rem 1.1rem;
+        margin-bottom: 1.4rem;
     }}
 
-    /* ---- memo sheet ---- */
+    div[data-testid="stExpander"] {{
+        border: {BORDER};
+        border-radius: 0;
+        background: {PANEL};
+        box-shadow: {SHADOW};
+        margin-top: 1.2rem;
+    }}
+    div[data-testid="stExpander"] summary {{
+        font-family: {DISPLAY_FONT};
+        font-weight: 700;
+    }}
+    div[data-testid="stAlert"] {{
+        border: {BORDER};
+        border-radius: 0;
+        background: {HIGHLIGHT};
+        color: {INK};
+    }}
+
     .memo-sheet {{
         background: {PANEL};
-        border: 2px solid {INK};
-        box-shadow: 8px 8px 0 {INK};
+        border: {BORDER};
+        box-shadow: 10px 10px 0 {INK};
         padding: 2rem 2.2rem 1.8rem 2.2rem;
-        margin: 0 auto 1.4rem auto;
+        margin: 0 auto 1.8rem auto;
         max-width: 780px;
     }}
     .memo-head {{
-        border-bottom: 2px solid {INK};
+        border-bottom: {BORDER};
         padding-bottom: 1rem;
         margin-bottom: 1.5rem;
     }}
@@ -333,30 +359,35 @@ st.markdown(
     }}
     .memo-head-row:last-child {{ margin-bottom: 0; }}
     .memo-k {{
-        color: {INK_SOFT};
+        background: {INK};
+        color: #FFFFFF;
         width: 3.4rem;
         flex-shrink: 0;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-weight: 600;
+        font-weight: 700;
+        text-align: center;
     }}
-    .memo-v {{ color: {INK}; font-weight: 600; }}
+    .memo-v {{ color: {INK}; font-weight: 700; }}
     .memo-body {{
         text-align: justify;
         line-height: 1.65;
         color: {INK};
         font-size: 0.98rem;
+        font-weight: 500;
         margin-bottom: 1.3rem;
     }}
     .memo-section-title {{
+        display: inline-block;
         font-family: {DISPLAY_FONT};
         text-transform: uppercase;
         font-size: 0.84rem;
         font-weight: 700;
         letter-spacing: 0.06em;
-        margin: 0 0 0.7rem 0;
-        padding-bottom: 0.35rem;
-        border-bottom: 2px solid {INK};
+        margin: 0 0 0.8rem 0;
+        padding: 0.2rem 0.7rem;
+        background: {HIGHLIGHT};
+        border: 3px solid {INK};
     }}
     .memo-list {{
         text-align: justify;
@@ -365,79 +396,115 @@ st.markdown(
         margin-bottom: 1.4rem;
         color: {INK};
         font-size: 0.98rem;
+        font-weight: 500;
     }}
     .memo-stat-grid {{
         display: flex;
-        border: 2px solid {INK};
+        border: {BORDER};
         margin-bottom: 1.4rem;
     }}
     .memo-stat-cell {{
         flex: 1;
         padding: 0.95rem 1.1rem;
-        border-right: 2px solid {INK};
+        border-right: {BORDER};
     }}
     .memo-stat-cell:last-child {{ border-right: none; }}
     .memo-stat-label {{
+        font-family: {DISPLAY_FONT};
         font-size: 0.74rem;
-        color: {INK_SOFT};
+        color: {INK};
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: 0.35rem;
-        font-weight: 600;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.45rem;
+        font-weight: 700;
     }}
     .memo-stat-value {{
+        display: inline-block;
         font-family: {DATA_FONT};
         font-size: 1.3rem;
-        font-weight: 600;
+        font-weight: 700;
         color: {INK};
+        padding: 0.05rem 0.45rem;
+        border: 3px solid transparent;
     }}
-    .memo-stat-value.good {{ color: {SUCCESS}; }}
-    .memo-stat-value.bad {{ color: {DANGER}; }}
+    .memo-stat-value.good {{ background: {SUCCESS_FILL}; border-color: {INK}; }}
+    .memo-stat-value.bad {{ background: {DANGER_FILL}; border-color: {INK}; }}
     .memo-stat-note {{
         font-family: {DATA_FONT};
         font-size: 0.74rem;
+        font-weight: 500;
         color: {INK_SOFT};
-        margin-top: 0.35rem;
+        margin-top: 0.4rem;
         line-height: 1.5;
     }}
 
     div[data-testid="stDownloadButton"] {{
         display: flex;
         justify-content: center;
-        margin-bottom: 2rem;
+        margin-bottom: 2.2rem;
     }}
     div[data-testid="stDownloadButton"] button {{
         font-family: {DISPLAY_FONT};
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-size: 0.82rem;
-        border: 2px solid {INK} !important;
+        font-size: 0.86rem;
+        border: {BORDER} !important;
         border-radius: 0 !important;
-        background: {INK} !important;
+        background: {ACCENT} !important;
         color: #FFFFFF !important;
-        box-shadow: 4px 4px 0 {INK};
-        padding: 0.55rem 1.4rem;
+        box-shadow: 5px 5px 0 {INK};
+        padding: 0.65rem 1.6rem;
+        transition: transform 0.08s, box-shadow 0.08s;
     }}
     div[data-testid="stDownloadButton"] button:hover {{
-        background: #FFFFFF !important;
+        background: {HIGHLIGHT} !important;
         color: {INK} !important;
+        transform: translate(3px, 3px);
+        box-shadow: 2px 2px 0 {INK};
+    }}
+    div[data-testid="stDownloadButton"] button:active {{
+        transform: translate(5px, 5px);
+        box-shadow: 0 0 0 {INK};
+    }}
+    div[data-testid="stDownloadButton"] button:focus-visible {{
+        outline: 4px solid {INK};
+        outline-offset: 3px;
     }}
 
-    /* ---- footer ---- */
+    div[data-testid="stPlotlyChart"] {{
+        background: {PANEL};
+        border: {BORDER};
+        box-shadow: {SHADOW};
+        padding: 0.4rem;
+        margin-bottom: 1.2rem;
+    }}
+
     .app-footer {{
-        margin-top: 1rem;
-        padding-top: 1.1rem;
-        border-top: 2px solid {INK};
-        color: {INK_SOFT};
+        margin-top: 1.4rem;
+        padding: 1rem 1.2rem;
+        background: {INK};
+        color: #FFFFFF;
         font-size: 0.8rem;
+        font-weight: 500;
         display: flex;
         justify-content: center;
         gap: 1.8rem;
         flex-wrap: wrap;
         text-align: center;
     }}
-    .app-footer a {{ color: {INK}; text-decoration: underline; }}
+    .app-footer a {{ color: {HIGHLIGHT}; font-weight: 700; text-decoration: underline; }}
+
+    @media (max-width: 720px) {{
+        .stat-row, .memo-stat-grid {{ flex-direction: column; }}
+        .stat-cell, .memo-stat-cell {{ border-right: none; border-bottom: {BORDER}; }}
+        .stat-cell:last-child, .memo-stat-cell:last-child {{ border-bottom: none; }}
+        .masthead h1 {{ font-size: 2rem; }}
+    }}
+
+    @media (prefers-reduced-motion: reduce) {{
+        * {{ transition: none !important; }}
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -468,12 +535,6 @@ def badge(text, tone="neutral", small=False):
     return f'<span class="badge {tone} {size_class}">{text}</span>'
 
 
-# ---------------------------------------------------------------------------
-# Data loading - reads each pipeline artifact independently, so tabs can
-# fall back to a helpful prompt rather than crashing when an earlier stage
-# hasn't run yet.
-# ---------------------------------------------------------------------------
-
 @st.cache_data
 def load_json(path):
     return json.load(open(ROOT / path, encoding="utf-8"))
@@ -502,9 +563,6 @@ if has_results:
     memo_text = load_text("results/memo.md")
 true_effects = load_json("data/simulated/true_effects.json") if exists("data/simulated/true_effects.json") else None
 
-# ---------------------------------------------------------------------------
-# Masthead (centered)
-# ---------------------------------------------------------------------------
 
 st.markdown(
     """
@@ -520,9 +578,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------------------------
-# Hero: verdict + headline numbers, always visible, no tab click required
-# ---------------------------------------------------------------------------
 
 if not power:
     st.info(
@@ -557,11 +612,6 @@ else:
 
     verdict_tone = "good" if verdict == "GO" else "bad"
 
-    # Guardrail nuance beyond the binary breach/no-breach call: flag when the
-    # observed gap is closing in on the margin even though it hasn't crossed
-    # it, so a stakeholder gets an early warning rather than a false all-clear.
-    # This is a presentation-layer read, not a change to the preregistered
-    # breach decision itself, which is made in analyze.py and untouched here.
     if breached:
         guardrail_tone, guardrail_label = "bad", "Breached margin"
     elif diff > 0.75 * margin:
@@ -608,11 +658,6 @@ else:
 
 st.write("")
 
-# ---------------------------------------------------------------------------
-# Section nav - four real buttons in equal-width columns rather than
-# st.tabs(), so the bar reliably spans edge to edge with even spacing
-# instead of clustering in the middle.
-# ---------------------------------------------------------------------------
 
 SECTIONS = ["Design", "Results", "Recovery check", "Memo"]
 if "active_section" not in st.session_state:
@@ -629,13 +674,6 @@ with st.container(key="section_nav"):
                 type="primary" if is_active else "secondary",
                 use_container_width=True,
             ):
-                # The button's own color for this run was already fixed by
-                # the `type` argument above, computed from the state as it
-                # stood *before* this click - so without an immediate rerun
-                # the newly active tab wouldn't invert until some later,
-                # unrelated interaction forced a redraw. Rerunning now makes
-                # every button re-evaluate is_active against the fresh
-                # state in the same click.
                 if st.session_state.active_section != name:
                     st.session_state.active_section = name
                     st.rerun()
@@ -700,7 +738,7 @@ elif active_section == "Results":
             fig.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[p["control_mean_aov"], p["treatment_mean_aov"]],
-                marker=dict(color=[NEUTRAL, treatment_color], line=dict(color=INK, width=2)),
+                marker=dict(color=[NEUTRAL, treatment_color], line=dict(color=INK, width=3)),
                 text=[f"R$ {p['control_mean_aov']:.2f}", f"R$ {p['treatment_mean_aov']:.2f}"],
                 textposition="outside",
                 textfont=dict(color=INK, family=CHART_FONT, size=13),
@@ -708,7 +746,7 @@ elif active_section == "Results":
             mde_line = p["control_mean_aov"] + mde
             fig.add_hline(
                 y=mde_line,
-                line_dash="dash", line_color=INK,
+                line_dash="dash", line_width=3, line_color=INK,
                 annotation_text=f"preregistered MDE (+R$ {mde:.0f})",
                 annotation_font=dict(color=INK, family=CHART_FONT, size=11),
                 annotation_position="top left",
@@ -719,7 +757,8 @@ elif active_section == "Results":
                 plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family=CHART_FONT, color=INK, size=12),
                 yaxis_title="Mean AOV (R$)",
-                yaxis=dict(gridcolor=GRID, range=[0, top * 1.2]),
+                xaxis=dict(showline=True, linewidth=3, linecolor=INK),
+                yaxis=dict(gridcolor=GRID, showline=True, linewidth=3, linecolor=INK, range=[0, top * 1.2]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
             st.plotly_chart(fig, width='stretch')
@@ -730,7 +769,7 @@ elif active_section == "Results":
             fig2.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[g["control_complaint_rate"] * 100, g["treatment_complaint_rate"] * 100],
-                marker=dict(color=[NEUTRAL, DANGER_FILL if breach else SUCCESS_FILL], line=dict(color=INK, width=2)),
+                marker=dict(color=[NEUTRAL, DANGER_FILL if breach else SUCCESS_FILL], line=dict(color=INK, width=3)),
                 text=[f"{g['control_complaint_rate']*100:.1f}%", f"{g['treatment_complaint_rate']*100:.1f}%"],
                 textposition="inside",
                 insidetextanchor="end",
@@ -739,7 +778,7 @@ elif active_section == "Results":
             ceiling_value = g["control_complaint_rate"] * 100 + g["non_inferiority_margin"] * 100
             fig2.add_hline(
                 y=ceiling_value,
-                line_dash="dash", line_color=DANGER,
+                line_dash="dash", line_width=3, line_color=DANGER,
                 annotation_text="non-inferiority ceiling",
                 annotation_font=dict(color=DANGER, family=CHART_FONT, size=11),
                 annotation_position="top left",
@@ -750,7 +789,8 @@ elif active_section == "Results":
                 plot_bgcolor="#FFFFFF", paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family=CHART_FONT, color=INK, size=12),
                 yaxis_title="Complaint rate (%)",
-                yaxis=dict(gridcolor=GRID, range=[0, max(ceiling_value, max_bar) * 1.18]),
+                xaxis=dict(showline=True, linewidth=3, linecolor=INK),
+                yaxis=dict(gridcolor=GRID, showline=True, linewidth=3, linecolor=INK, range=[0, max(ceiling_value, max_bar) * 1.18]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
             st.plotly_chart(fig2, width='stretch')
@@ -776,20 +816,20 @@ elif active_section == "Recovery check":
         )
 
         def recovery_chart(title, ci_low, ci_high, point_estimate, true_value, unit_fmt, recovered, x_suffix=""):
-            color = SUCCESS if recovered else DANGER
+            color = SUCCESS_FILL if recovered else DANGER_FILL
             fig = go.Figure()
             fig.add_trace(go.Scatter(
                 x=[ci_low, point_estimate, ci_high],
                 y=["Estimate"] * 3,
                 mode="lines+markers",
-                line=dict(color=color, width=3),
-                marker=dict(size=[7, 11, 7], color=color, line=dict(color=INK, width=1)),
+                line=dict(color=color, width=5),
+                marker=dict(size=[12, 18, 12], color=color, line=dict(color=INK, width=3)),
                 name="Point estimate, 95% CI",
                 hovertemplate="%{x" + x_suffix + "}<extra></extra>",
             ))
             fig.add_vline(
                 x=true_value,
-                line_dash="dash", line_width=2, line_color=INK,
+                line_dash="dash", line_width=3, line_color=INK,
                 annotation_text=f"True value {unit_fmt(true_value)}",
                 annotation_font=dict(color=INK, family=CHART_FONT, size=11),
                 annotation_position="top",
@@ -802,7 +842,7 @@ elif active_section == "Recovery check":
                 height=190,
                 margin=dict(t=48, b=30, l=90, r=30),
                 yaxis=dict(visible=True, showgrid=False, showline=False),
-                xaxis=dict(gridcolor=GRID, zeroline=False),
+                xaxis=dict(gridcolor=GRID, zeroline=False, showline=True, linewidth=3, linecolor=INK),
                 showlegend=False,
             )
             return fig
@@ -864,12 +904,6 @@ elif active_section == "Memo":
         n_total = p["n_treatment_sellers"] + p["n_control_sellers"]
         verdict_tone = "good" if verdict == "GO" else "bad"
 
-        # Built as a flat, single-line HTML string (no blank lines, no
-        # leading indentation) rather than a pretty-printed multi-line
-        # f-string: Streamlit's markdown renderer treats a blank line
-        # inside a raw-HTML block as the block's end, after which any
-        # following line indented 4+ spaces is read as a literal code
-        # block instead of HTML - which is what broke this card before.
         memo_html = "".join([
             '<div class="memo-sheet">',
             '<div class="memo-head">',
