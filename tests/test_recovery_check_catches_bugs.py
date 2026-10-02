@@ -1,102 +1,101 @@
-"""
-The ground-truth recovery check is only useful if it can actually fail.
-This test deliberately breaks the analysis (swaps the test statistic
-direction, and separately breaks randomization into a non-random split)
-and confirms the recovery assertion catches both.
-"""
+import json
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 
-from experiment import analyze  # noqa: E402
+from experiment import analyze
+from experiment import randomize as randomize_module
+
+N_SELLERS = 300
+ORDERS_PER_SELLER = 10
+LIFT = 20.0
 
 
-def make_experiment_df(n_per_arm, true_lift, seed=0):
+def make_population(seed=0):
     rng = np.random.default_rng(seed)
     rows = []
-    for i in range(n_per_arm):
-        for arm, mean in [("control", 100.0), ("treatment", 100.0 + true_lift)]:
-            seller_id = f"{arm}_{i}"
-            for _ in range(10):
-                rows.append({
-                    "seller_id": seller_id,
-                    "category": "cat",
-                    "arm": arm,
-                    "aov": rng.normal(mean, 15),
-                    "complaint": rng.binomial(1, 0.1),
-                })
+    for i in range(N_SELLERS):
+        shift = 40.0 * i / N_SELLERS
+        for _ in range(ORDERS_PER_SELLER):
+            aov_control = 100.0 + shift + rng.normal(0, 10)
+            complaint = int(rng.binomial(1, 0.1))
+            rows.append({
+                "seller_id": f"seller_{i:04d}",
+                "category": "cat",
+                "aov_control": aov_control,
+                "aov_treatment": aov_control + LIFT,
+                "complaint_control": complaint,
+                "complaint_treatment": complaint,
+            })
     return pd.DataFrame(rows)
 
 
-def test_recovery_check_passes_on_correct_analysis(tmp_path, monkeypatch):
-    true_lift = 20.0
-    df = make_experiment_df(n_per_arm=300, true_lift=true_lift, seed=1)
-    results = analyze.analyze(df, expected_n_per_arm=300)
+def write_truth(path, population):
+    seller_control = population.groupby("seller_id")["aov_control"].mean()
+    seller_treatment = population.groupby("seller_id")["aov_treatment"].mean()
+    truth = {
+        "true_aov_lift_absolute": LIFT,
+        "realized_aov_lift_seller_level": float((seller_treatment - seller_control).mean()),
+        "true_complaint_lift_absolute": 0.0,
+        "realized_complaint_diff_order_level": float(
+            population["complaint_treatment"].mean() - population["complaint_control"].mean()
+        ),
+    }
+    path.write_text(json.dumps(truth), encoding="utf-8")
 
-    fake_true_effects = tmp_path / "true_effects.json"
-    fake_true_effects.write_text(
-        f'{{"true_aov_lift_absolute": {true_lift}, '
-        f'"true_complaint_lift_absolute": 0.0}}'
+
+class SortedRng:
+    def permutation(self, values):
+        return np.array(values)
+
+
+def run(population, tmp_path, monkeypatch):
+    truth_path = tmp_path / "true_effects.json"
+    write_truth(truth_path, population)
+    monkeypatch.setattr(analyze, "TRUE_EFFECTS_PATH", truth_path)
+    monkeypatch.setattr(analyze, "EXPECTED_N_PER_ARM", N_SELLERS // 2)
+
+
+def test_correct_randomization_recovers_the_truth_for_most_seeds(tmp_path, monkeypatch):
+    population = make_population()
+    run(population, tmp_path, monkeypatch)
+    recovered = 0
+    n_seeds = 20
+    for seed in range(n_seeds):
+        revealed = randomize_module.randomize(population, seed=seed)
+        results = analyze.analyze(revealed)
+        if analyze.check_ground_truth_recovery(results)["primary_recovered"]:
+            recovered += 1
+    assert recovered >= 16
+
+
+def test_non_random_assignment_through_the_real_randomize_is_caught(tmp_path, monkeypatch):
+    population = make_population()
+    run(population, tmp_path, monkeypatch)
+    fake_np = SimpleNamespace(
+        random=SimpleNamespace(default_rng=lambda seed: SortedRng()),
+        where=np.where,
     )
-    monkeypatch.setattr(analyze, "TRUE_EFFECTS_PATH", fake_true_effects)
-
+    monkeypatch.setattr(randomize_module, "np", fake_np)
+    revealed = randomize_module.randomize(population, seed=1)
+    results = analyze.analyze(revealed)
     recovery = analyze.check_ground_truth_recovery(results)
-    assert recovery["primary_recovered"] is True
+    assert not recovery["primary_recovered"]
+    assert not recovery["both_recovered"]
 
 
-def test_recovery_check_fails_when_true_effect_is_wrong(tmp_path, monkeypatch):
-    # mutation: pretend the true effect was something the data could not
-    # plausibly have produced, simulating a bug that mislabels ground truth
-    true_lift = 20.0
-    wrong_true_lift = 500.0
-    df = make_experiment_df(n_per_arm=300, true_lift=true_lift, seed=2)
-    results = analyze.analyze(df, expected_n_per_arm=300)
+def test_recovery_is_judged_against_the_realized_effect_not_only_the_parameter(
+    tmp_path, monkeypatch
+):
+    population = make_population()
+    run(population, tmp_path, monkeypatch)
+    truth_path = tmp_path / "true_effects.json"
+    truth = json.loads(truth_path.read_text(encoding="utf-8"))
+    truth["realized_aov_lift_seller_level"] = 500.0
+    truth_path.write_text(json.dumps(truth), encoding="utf-8")
 
-    fake_true_effects = tmp_path / "true_effects.json"
-    fake_true_effects.write_text(
-        f'{{"true_aov_lift_absolute": {wrong_true_lift}, '
-        f'"true_complaint_lift_absolute": 0.0}}'
-    )
-    monkeypatch.setattr(analyze, "TRUE_EFFECTS_PATH", fake_true_effects)
-
-    recovery = analyze.check_ground_truth_recovery(results)
-    assert recovery["primary_recovered"] is False
-
-
-def test_recovery_check_fails_when_randomization_is_broken(tmp_path, monkeypatch):
-    # mutation: assign arm by a non-random rule that happens to align with a
-    # confounder (e.g. treatment sellers were non-randomly drawn from a
-    # higher-spend pool instead of assigned by a random draw), so the
-    # observed effect is contaminated with a shift that has nothing to do
-    # with the true injected treatment effect.
-    n_per_arm = 300
-    true_lift = 20.0
-    rng = np.random.default_rng(3)
-    rows = []
-    for i in range(n_per_arm * 2):
-        arm = "treatment" if i % 2 == 0 else "control"
-        confounder_shift = 30.0 if arm == "treatment" else 0.0
-        seller_id = f"seller_{i}"
-        base = 100.0 + (true_lift if arm == "treatment" else 0.0)
-        for _ in range(10):
-            rows.append({
-                "seller_id": seller_id,
-                "category": "cat",
-                "arm": arm,
-                "aov": rng.normal(base, 15) + confounder_shift,
-                "complaint": rng.binomial(1, 0.1),
-            })
-    df = pd.DataFrame(rows)
-    results = analyze.analyze(df, expected_n_per_arm=n_per_arm)
-
-    # the recovery check is told the TRUE effect was 20.0 (as actually
-    # injected above), which the confounded estimate should miss
-    fake_true_effects = tmp_path / "true_effects.json"
-    fake_true_effects.write_text(
-        f'{{"true_aov_lift_absolute": {true_lift}, '
-        f'"true_complaint_lift_absolute": 0.0}}'
-    )
-    monkeypatch.setattr(analyze, "TRUE_EFFECTS_PATH", fake_true_effects)
-
-    recovery = analyze.check_ground_truth_recovery(results)
-    assert recovery["primary_recovered"] is False
+    revealed = randomize_module.randomize(population, seed=3)
+    recovery = analyze.check_ground_truth_recovery(analyze.analyze(revealed))
+    assert not recovery["primary_recovered"]
+    assert recovery["injected_aov_lift"] == LIFT

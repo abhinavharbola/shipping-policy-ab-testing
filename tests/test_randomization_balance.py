@@ -1,8 +1,3 @@
-"""
-Randomization produces balanced arms within expected variance, and never
-leaks a counterfactual outcome column into the revealed dataset.
-"""
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -27,16 +22,36 @@ def make_fake_population(n_sellers=1000, orders_per_seller=5, seed=1):
     return pd.DataFrame(rows)
 
 
-def test_arms_are_balanced_across_repeated_seeds():
-    population = make_fake_population()
-    n_sellers = population["seller_id"].nunique()
-    imbalances = []
-    for seed in range(20):
+def treated_sellers(revealed):
+    return set(revealed.loc[revealed["arm"] == "treatment", "seller_id"])
+
+
+def test_split_is_exactly_half_for_every_seed():
+    population = make_fake_population(n_sellers=400)
+    for seed in range(10):
         revealed = randomize(population, seed)
-        n_treatment = revealed.loc[revealed["arm"] == "treatment", "seller_id"].nunique()
-        imbalances.append(abs(n_treatment - n_sellers / 2))
-    # exact 50/50 split by construction (even n_sellers, integer //2)
-    assert max(imbalances) == 0
+        assert len(treated_sellers(revealed)) == 200
+
+
+def test_assignment_depends_on_the_seed_and_not_on_seller_order():
+    population = make_fake_population(n_sellers=400)
+    first = treated_sellers(randomize(population, 1))
+    second = treated_sellers(randomize(population, 2))
+    assert first != second
+    lowest_half = {f"seller_{i}" for i in range(200)}
+    assert first != lowest_half
+
+
+def test_each_seller_is_treated_about_half_the_time_across_seeds():
+    population = make_fake_population(n_sellers=200, orders_per_seller=1)
+    n_seeds = 300
+    counts = {s: 0 for s in population["seller_id"]}
+    for seed in range(n_seeds):
+        for s in treated_sellers(randomize(population, seed)):
+            counts[s] += 1
+    frequencies = np.array(list(counts.values())) / n_seeds
+    assert abs(frequencies.mean() - 0.5) < 0.01
+    assert np.abs(frequencies - 0.5).max() < 0.15
 
 
 def test_revealed_dataset_has_no_counterfactual_columns():
@@ -44,6 +59,17 @@ def test_revealed_dataset_has_no_counterfactual_columns():
     revealed = randomize(population, seed=5)
     forbidden = {"aov_control", "aov_treatment", "complaint_control", "complaint_treatment"}
     assert forbidden.isdisjoint(set(revealed.columns))
+
+
+def test_revealed_outcome_matches_the_assigned_arm():
+    population = make_fake_population(n_sellers=100, orders_per_seller=2)
+    revealed = randomize(population, seed=9)
+    merged = revealed.reset_index(drop=True).join(
+        population[["aov_control", "aov_treatment"]].reset_index(drop=True)
+    )
+    treated = merged["arm"] == "treatment"
+    assert (merged.loc[treated, "aov"] == merged.loc[treated, "aov_treatment"]).all()
+    assert (merged.loc[~treated, "aov"] == merged.loc[~treated, "aov_control"]).all()
 
 
 def test_category_mix_is_roughly_similar_between_arms():
@@ -66,11 +92,6 @@ def test_category_mix_is_roughly_similar_between_arms():
 
 
 def test_odd_population_raises_instead_of_silently_unbalancing():
-    """
-    Regression test: an odd seller count previously fell through to
-    `len(shuffled) // 2`, giving control one extra seller with no warning.
-    randomize() must now refuse instead of silently unbalancing the split.
-    """
     population = make_fake_population(n_sellers=201)
     with pytest.raises(ValueError, match="odd"):
         randomize(population, seed=1)
