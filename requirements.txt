@@ -1,17 +1,8 @@
-# Sole dependency manifest for this project (no pyproject.toml).
-# Core pipeline deps + the dashboard and dev extras, in one file since
-# nothing here is installed or distributed as a package.
-
-# core
-pandas
-numpy
-scipy
-statsmodels
-
-# dashboard extra
-streamlit
-plotly
-
-# dev extra
-pytest
-pyflakes
+numpy>=1.26,<3
+pandas>=2.1,<4
+scipy>=1.11,<2
+statsmodels>=0.14,<1
+streamlit>=1.50,<2
+plotly>=5.18,<7
+pytest>=8,<10
+pyflakes>=3,<4

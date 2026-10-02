@@ -1,15 +1,20 @@
 {
-  "true_aov_lift": 28.0,
+  "injected_aov_lift": 28.0,
+  "realized_aov_lift": 30.844,
   "primary_ci": [
-    19.42,
-    36.99
+    21.32,
+    54.82
   ],
   "primary_recovered": true,
-  "true_complaint_lift": 0.012,
+  "primary_ci_covers_injected": true,
+  "injected_complaint_lift": 0.012,
+  "realized_complaint_diff": 0.013484,
   "guardrail_ci": [
-    0.0096,
-    0.0308
+    0.0118,
+    0.0227
   ],
   "guardrail_recovered": true,
+  "guardrail_ci_covers_injected": true,
+  "realized_complaint_diff_below_margin": true,
   "both_recovered": true
 }

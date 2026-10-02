@@ -1,19 +1,11 @@
-# Python
 __pycache__/
 *.pyc
+.pytest_cache/
 .venv/
-venv/
-*.egg-info/
-
-# Raw Olist CSVs: user-supplied, never committed
+.DS_Store
 data/raw/*
 !data/raw/.gitkeep
-
-# Regenerable simulation artifacts, except the committed ground-truth file
 data/simulated/*
 !data/simulated/true_effects.json
-
-# Editor/OS cruft
-.DS_Store
-.vscode/
-.idea/
+!data/simulated/.gitkeep
+venv/

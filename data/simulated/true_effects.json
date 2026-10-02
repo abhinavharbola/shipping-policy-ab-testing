@@ -4,5 +4,10 @@
   "n_per_arm": 2503,
   "true_aov_lift_absolute": 28.0,
   "true_complaint_lift_absolute": 0.012,
-  "note": "Ground truth for the recovery check in analyze.py. Kept separate from randomize.py's output; randomize.py and analyze.py never read this file or the *_control/*_treatment potential-outcome columns together."
+  "realized_aov_lift_seller_level": 30.844,
+  "realized_complaint_diff_order_level": 0.013484,
+  "seller_aov_std_target": 315.58,
+  "seller_aov_std_achieved": 315.58,
+  "seller_dispersion_sigma": 1.1494,
+  "note": "Ground truth for the recovery check in analyze.py. The true_* fields are the injected parameters. The realized_* fields are the finite-population effects actually present in this simulated population, which is what a confidence interval from one randomized run targets. Kept separate from randomize.py's output; randomize.py and analyze.py never read this file or the *_control/*_treatment potential-outcome columns together."
 }

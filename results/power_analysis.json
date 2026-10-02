@@ -2,7 +2,7 @@
   "alpha": 0.05,
   "power_target": 0.8,
   "primary": {
-    "test": "Welch's t-test (two independent means, unequal variance)",
+    "test": "Two-sample t-test power (TTestIndPower, equal n, equal variance planning assumption; with equal n this closely approximates Welch's t-test, which is the test that runs)",
     "unit_of_analysis": "seller (mean AOV across that seller's orders)",
     "mde_absolute_brl": 25.0,
     "baseline_seller_level_aov_std": 315.58,
@@ -12,7 +12,7 @@
     "required_n_per_arm_sellers": 2503
   },
   "guardrail": {
-    "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower), pooled order-level counts, sized to detect a margin-sized difference against zero. The planned analysis test is a one-sided, margin-shifted, seller-clustered non-inferiority test (see docs/PREREGISTRATION.md section 8), so this is an order-level planning approximation, not a power calculation for the test that runs: it ignores within-seller correlation and can understate the sellers that test needs (see the section 4 amendment). A seller-level power calculation would need per-seller complaint-rate variance, which calibration.py does not currently compute.",
+    "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower), pooled order-level counts, sized to detect a margin-sized difference against zero. The planned analysis test is a one-sided, margin-shifted non-inferiority test on the order-weighted complaint rate with seller-clustered standard errors (see docs/PREREGISTRATION.md section 8), so this is an order-level planning approximation, not a power calculation for the test that runs: it ignores within-seller correlation and can understate the sellers that test needs (see the section 4 amendment). The conversion to sellers uses the mean orders per seller, which the heavily skewed real distribution makes unrepresentative. A seller-clustered power calculation would need per-seller complaint-rate variance, which calibration.py does not currently compute.",
     "unit_for_sizing": "order (pooled within arm)",
     "baseline_complaint_rate": 0.1276,
     "non_inferiority_margin_absolute": 0.02,
