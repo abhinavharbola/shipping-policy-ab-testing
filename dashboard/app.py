@@ -1,18 +1,3 @@
-"""
-Dashboard: Japandi report view.
-
-Warm greige paper, linen panels, hairline rules, no shadows, small
-radii, and generous whitespace. Shippori Mincho carries headings and the
-verdict, DM Sans carries everything else with tabular numerals. Sage,
-ochre and clay are reserved for status. Navigation is a quiet text tab
-bar with an underline marking the active section.
-
-The verdict is computed by calling experiment.reporting.recommendation()
-on the analysis output, never by parsing memo.md. Currency always shows 2
-decimal places and percentages 1. Currency in markdown is wrapped in code
-spans so Streamlit does not read dollar signs as LaTeX.
-"""
-
 import json
 import re
 import sys
@@ -28,7 +13,13 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from experiment.reporting import next_step, recommendation  # noqa: E402
+from experiment.reporting import memo_content
+
+GUARDRAIL_STYLE = {
+    "passed": ("good", "Non-inferiority established"),
+    "inconclusive": ("caution", "Below margin, not established"),
+    "breached": ("bad", "At or above margin"),
+}
 
 PAGE_ICON = str(FAVICON_PATH) if FAVICON_PATH.is_file() else "\u25A0"
 
@@ -362,6 +353,7 @@ st.markdown(
     .memo-stat-label {{ font-size: 0.84rem; color: {INK_SOFT}; margin-bottom: 0.5rem; font-weight: 500; }}
     .memo-stat-value {{ font-family: {DISPLAY_FONT}; font-size: 1.6rem; font-weight: 500; color: {INK}; }}
     .memo-stat-value.good {{ color: {SUCCESS}; }}
+    .memo-stat-value.caution {{ color: {WARNING}; }}
     .memo-stat-value.bad {{ color: {DANGER}; }}
     .memo-stat-note {{ font-size: 0.78rem; color: {INK_SOFT}; margin-top: 0.5rem; line-height: 1.55; }}
 
@@ -421,9 +413,6 @@ st.markdown(
 )
 
 def stat_row(stats, compact=False):
-    """Render a row of statistics as hard-bordered columns, sharing one
-    typographic treatment across every tab instead of repeating Streamlit's
-    default bordered-card-per-metric pattern."""
     cells = []
     for s in stats:
         value_class = f"stat-value {s.get('tone', '')}".strip()
@@ -453,25 +442,26 @@ def render_preregistration(text, power):
         int(parts[i]): (parts[i + 1].strip(), parts[i + 2].strip())
         for i in range(1, len(parts) - 2, 3)
     }
-    if len(sections) < 9:
+    if len(sections) < 10:
         with st.expander("Read the full preregistration document"):
             st.markdown(text)
         return
 
-    mde = f"BRL {power['primary']['mde_absolute_brl']:.0f}"
+    mde = f"R$ {power['primary']['mde_absolute_brl']:.0f}"
     margin = f"{power['guardrail']['non_inferiority_margin_absolute'] * 100:.1f}pp"
     n = f"{power['required_n_per_arm']:,}"
     total = f"{power['required_total_sellers']:,}"
     summaries = {
-        1: "Free shipping should raise a seller's average order value without meaningfully raising delivery complaints. The direction was stated before any data existed.",
-        2: "The primary metric is average order value per seller. The guardrail is the share of orders reviewed 2 stars or below. Whole sellers are randomized, not individual orders, so one seller's policy cannot leak across arms.",
-        3: f"The smallest lift worth acting on is {mde}, just above the roughly BRL 23 of freight a seller absorbs. Complaints may rise by at most {margin} before the gain stops being worth it.",
-        4: f"{n} sellers per arm ({total} in total) gives {power['power_target'] * 100:.0f}% power at alpha {power['alpha']}. The order value test needs the most sellers, so it sets the size ({power['binding_constraint']}).",
+        1: "Free shipping should raise a seller's average order value without meaningfully raising complaints. The direction was stated before any data existed, but the test itself is two-sided and a GO needs a positive lift.",
+        2: "The primary metric is average order value per seller. The guardrail is the share of orders reviewed 2 stars or below, a proxy that is not specific to delivery. Whole sellers are randomized, not individual orders, so one seller's policy cannot leak across arms.",
+        3: f"The smallest lift worth acting on is {mde}, set near an approximate R$ 23 freight cost per order from public Olist data. A GO needs the estimate to reach it. Complaints may rise by at most {margin} before the gain stops being worth it.",
+        4: f"{n} sellers per arm ({total} in total) gives {power['power_target'] * 100:.0f}% power at alpha {power['alpha']} for the order value test. That test needs the most sellers, so it sets the size ({power['binding_constraint']}). The guardrail is sized only approximately.",
         5: f"Sellers are assigned 1:1 by simple random draw, with no stratification. At {n} per arm, category mix balances on its own.",
-        6: "The analysis runs once, on the full sample, with no interim looks. The code refuses to run on a partial dataset, so nobody can stop early on a lucky result.",
+        6: "The analysis runs once, on the full sample, with no interim looks. The code checks the sample size against constants frozen in the repo and refuses to overwrite a result computed on different data.",
         7: "Welch's t-test on each seller's mean order value. It was chosen before seeing data because free shipping may change the spread of order values between arms.",
-        8: f"A one-sided non-inferiority test on each seller's complaint rate against the {margin} margin. The guardrail passes only when the data show the gap is below the margin.",
-        9: "This file was committed to git before any simulation code, so the git log proves the design came first.",
+        8: f"A one-sided non-inferiority test on the order-weighted complaint rate, with standard errors clustered by seller, against the {margin} margin. The guardrail passes only when the data show the gap is below the margin.",
+        9: "The original version of this file was committed to git before any simulation code. Later amendments are logged in section 10.",
+        10: "Every post-hoc correction to this document and the pipeline, with the reason for each. None of them was made before the first analysis.",
     }
 
     title_match = re.search(r"^# (.+)$", parts[0], flags=re.M)
@@ -483,9 +473,9 @@ def render_preregistration(text, power):
         st.markdown("Each section below opens with a plain-language summary. Open a section to read the exact preregistered wording.")
 
     with st.container(key="prereg"):
-        for num in range(1, 10):
+        for num in sorted(sections):
             title, body = sections[num]
-            tag_text = {4: "Wording corrected after analysis", 8: "Amended before analysis"}.get(num)
+            tag_text = {4: "Wording corrected after analysis", 8: "Amended after first analysis"}.get(num)
             tag = f'<span class="prereg-tag">{tag_text}</span>' if tag_text else ""
             st.markdown(
                 f'<div class="prereg-card"><div class="prereg-num">{num}</div>'
@@ -497,33 +487,45 @@ def render_preregistration(text, power):
                 st.markdown(body)
 
 
-@st.cache_data
-def load_json(path):
-    return json.load(open(ROOT / path, encoding="utf-8"))
+def exists(path):
+    return (ROOT / path).is_file()
+
+
+def file_stamp(path):
+    return (ROOT / path).stat().st_mtime_ns
 
 
 @st.cache_data
-def load_text(path):
+def load_json(path, stamp):
+    return json.loads((ROOT / path).read_text(encoding="utf-8"))
+
+
+@st.cache_data
+def load_text(path, stamp):
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def exists(path):
-    return (ROOT / path).is_file()
+def read_json(path):
+    return load_json(path, file_stamp(path))
+
+
+def read_text(path):
+    return load_text(path, file_stamp(path))
 
 
 power_done = exists("results/power_analysis.json")
 analyze_done = exists("results/analysis_results.json")
 report_done = exists("results/memo.md")
 
-prereg_text = load_text("docs/PREREGISTRATION.md") if exists("docs/PREREGISTRATION.md") else None
-power = load_json("results/power_analysis.json") if power_done else None
+prereg_text = read_text("docs/PREREGISTRATION.md") if exists("docs/PREREGISTRATION.md") else None
+power = read_json("results/power_analysis.json") if power_done else None
 
 has_results = analyze_done and report_done
 if has_results:
-    results = load_json("results/analysis_results.json")
-    recovery = load_json("results/recovery_check.json") if exists("results/recovery_check.json") else None
-    memo_text = load_text("results/memo.md")
-true_effects = load_json("data/simulated/true_effects.json") if exists("data/simulated/true_effects.json") else None
+    results = read_json("results/analysis_results.json")
+    recovery = read_json("results/recovery_check.json") if exists("results/recovery_check.json") else None
+    memo_text = read_text("results/memo.md")
+true_effects = read_json("data/simulated/true_effects.json") if exists("data/simulated/true_effects.json") else None
 
 
 st.markdown(
@@ -532,9 +534,9 @@ st.markdown(
         <div class="eyebrow">Preregistered A/B test</div>
         <h1>Free Shipping &amp; Order Value</h1>
         <div class="subtitle">Does offering free shipping raise average order value
-        without meaningfully increasing delivery complaints? The metric, sample
+        without meaningfully increasing complaints? The metric, sample
         size, and tests below were locked in before any experimental data
-        existed.</div>
+        existed. Post-hoc amendments are logged in the preregistration.</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -555,31 +557,22 @@ elif not has_results:
             <div class="hero-reasoning">The preregistered design requires
             {power['required_n_per_arm']:,} sellers per arm
             ({power['required_total_sellers']:,} total). Run
-            <code>scripts/run_pipeline.py</code> (or the individual
-            <code>python3 -m experiment.simulate</code>,
-            <code>python3 -m experiment.randomize</code>, and
-            <code>python3 -m experiment.analyze</code> steps)
-            to populate the verdict and results below.</div>
+            <code>scripts/run_pipeline.py</code> to populate the verdict
+            and results below.</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 else:
     p, g = results["primary"], results["guardrail"]
-    verdict, reasoning = recommendation(p, g)
+    content = memo_content(results)
+    verdict, reasoning = content["verdict"], content["reasoning"]
     significant = p["significant_at_alpha_0.05"]
-    breached = g["guardrail_breached"]
     margin = g["non_inferiority_margin"]
     diff = g["point_estimate_diff"]
 
     verdict_tone = "good" if verdict == "GO" else "bad"
-
-    if breached:
-        guardrail_tone, guardrail_label = "bad", "Breached margin"
-    elif diff > 0.75 * margin:
-        guardrail_tone, guardrail_label = "caution", "Within margin, watch closely"
-    else:
-        guardrail_tone, guardrail_label = "good", "Within margin"
+    guardrail_tone, guardrail_label = GUARDRAIL_STYLE[g["guardrail_status"]]
 
     n_total = p["n_treatment_sellers"] + p["n_control_sellers"]
     seed_note = f"seed {true_effects['seed']}" if true_effects else ""
@@ -590,7 +583,7 @@ else:
             <div class="hero-top">{badge(verdict, verdict_tone)}</div>
             <div class="hero-reasoning">{reasoning}</div>
             <div class="hero-meta">{n_total:,} sellers analyzed · Welch's t-test + one-sided
-            non-inferiority z-test · alpha 0.05{" · " + seed_note if seed_note else ""}</div>
+            seller-clustered non-inferiority z-test · alpha 0.05{" · " + seed_note if seed_note else ""}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -599,22 +592,23 @@ else:
         {
             "label": "AOV lift",
             "value": f"R$ {p['point_estimate_lift']:.2f}",
-            "tone": "good" if significant and p["point_estimate_lift"] > 0 else ("bad" if significant else ""),
+            "tone": "good" if significant and p["point_estimate_lift"] > 0 and p["lift_meets_mde"] else ("bad" if significant and p["point_estimate_lift"] < 0 else ""),
             "note": (
                 f"95% CI R$ {p['ci_95_low']:.2f} to R$ {p['ci_95_high']:.2f} · "
-                f"{'significant' if significant else 'not significant'} at p = {p['p_value']:.1e}"
+                f"{'significant' if significant else 'not significant'} at p = {p['p_value']:.1e} · "
+                f"{'meets' if p['lift_meets_mde'] else 'below'} the R$ {p['mde_absolute_brl']:.0f} minimum"
             ),
         },
         {
             "label": "Complaint-rate guardrail",
-            "value": f"{diff*100:+.1f}pp",
+            "value": f"{diff*100:+.2f}pp",
             "tone": guardrail_tone,
-            "note": f"{guardrail_label} · non-inferiority margin {margin*100:.1f}pp",
+            "note": f"{guardrail_label} · margin {margin*100:.2f}pp",
         },
         {
             "label": "Sample size",
             "value": f"{power['required_n_per_arm']:,} / arm",
-            "note": f"{power['required_total_sellers']:,} sellers total · preregistered, {power['power_target']*100:.0f}% power",
+            "note": f"{power['required_total_sellers']:,} sellers total · preregistered, {power['power_target']*100:.0f}% power (order value test)",
         },
     ])
 
@@ -634,7 +628,7 @@ with st.container(key="section_nav"):
                 name,
                 key=f"nav_{name}",
                 type="primary" if is_active else "secondary",
-                use_container_width=True,
+                width="stretch",
             ):
                 if st.session_state.active_section != name:
                     st.session_state.active_section = name
@@ -644,31 +638,32 @@ active_section = st.session_state.active_section
 
 if active_section == "Design":
     if not power:
-        st.info("Run `python3 -m design.power_analysis` (or `scripts/run_pipeline.py`) to populate this tab.")
+        st.info("Run `scripts/run_pipeline.py` to populate this tab.")
     else:
         st.markdown(
             '<div class="section-caption">Pulled directly from '
-            'docs/PREREGISTRATION.md and results/power_analysis.json - the '
-            'design was locked in before any simulation code existed. '
+            'docs/PREREGISTRATION.md and results/power_analysis.json. The '
+            'design was locked before any simulation code existed; later '
+            'amendments are logged in section 10. '
             'Sellers, not orders, are the unit of randomization.</div>',
             unsafe_allow_html=True,
         )
         stat_row([
             {"label": "Primary MDE", "value": f"R$ {power['primary']['mde_absolute_brl']:.0f}",
              "note": "min. lift worth acting on"},
-            {"label": "Guardrail margin", "value": f"{power['guardrail']['non_inferiority_margin_absolute']*100:.1f}pp",
+            {"label": "Guardrail margin", "value": f"{power['guardrail']['non_inferiority_margin_absolute']*100:.2f}pp",
              "note": "max. tolerable complaint-rate rise"},
             {"label": "Sellers / arm", "value": f"{power['required_n_per_arm']:,}",
              "note": f"binding: {power['binding_constraint']}"},
             {"label": "Total sellers", "value": f"{power['required_total_sellers']:,}", "note": ""},
             {"label": "Target power", "value": f"{power['power_target']*100:.0f}%",
-             "note": f"alpha {power['alpha']}"},
+             "note": f"alpha {power['alpha']}, order value test"},
         ], compact=True)
 
         st.markdown(
             f'<p class="section-caption" style="margin-top:0.9rem;">Real Olist sellers in scope for '
             f"comparison: {power['context_real_sellers_in_scope']:,}. The simulated population is "
-            f"sized to what the design requires, not to this historical count - see "
+            f"sized to what the design requires, not to this historical count. See "
             f'docs/PREREGISTRATION.md for the reasoning.</p>',
             unsafe_allow_html=True,
         )
@@ -677,11 +672,11 @@ if active_section == "Design":
 
 elif active_section == "Results":
     if not has_results or not power:
-        st.info("Run `python3 -m experiment.analyze` (or `scripts/run_pipeline.py`) to populate this tab.")
+        st.info("Run `scripts/run_pipeline.py` to populate this tab.")
     else:
         p = results["primary"]
         g = results["guardrail"]
-        breach = g["guardrail_breached"]
+        complaint_color = {"passed": SUCCESS_FILL, "inconclusive": WARNING_FILL, "breached": DANGER_FILL}[g["guardrail_status"]]
         significant = p["significant_at_alpha_0.05"]
         mde = power["primary"]["mde_absolute_brl"]
 
@@ -722,7 +717,7 @@ elif active_section == "Results":
                 yaxis=dict(gridcolor=GRID, showline=True, linewidth=1, linecolor=RULE, range=[0, top * 1.2]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, width="stretch")
 
         with col2:
             st.markdown("**Complaint rate by arm**")
@@ -730,8 +725,8 @@ elif active_section == "Results":
             fig2.add_trace(go.Bar(
                 x=["Control", "Treatment"],
                 y=[g["control_complaint_rate"] * 100, g["treatment_complaint_rate"] * 100],
-                marker=dict(color=[NEUTRAL, DANGER_FILL if breach else SUCCESS_FILL], line=dict(color=INK, width=1.5)),
-                text=[f"{g['control_complaint_rate']*100:.1f}%", f"{g['treatment_complaint_rate']*100:.1f}%"],
+                marker=dict(color=[NEUTRAL, complaint_color], line=dict(color=INK, width=1.5)),
+                text=[f"{g['control_complaint_rate']*100:.2f}%", f"{g['treatment_complaint_rate']*100:.2f}%"],
                 textposition="inside",
                 insidetextanchor="end",
                 textfont=dict(color=INK, family=CHART_FONT, size=13),
@@ -754,14 +749,14 @@ elif active_section == "Results":
                 yaxis=dict(gridcolor=GRID, showline=True, linewidth=1, linecolor=RULE, range=[0, max(ceiling_value, max_bar) * 1.18]),
                 height=340, margin=dict(t=40, b=20, l=40, r=20),
             )
-            st.plotly_chart(fig2, width='stretch')
+            st.plotly_chart(fig2, width="stretch")
 
         with st.expander("View raw analysis output (JSON)"):
             st.json(results, expanded=True)
 
 elif active_section == "Recovery check":
     if not has_results or not recovery:
-        st.info("Run `python3 -m experiment.analyze` (or `scripts/run_pipeline.py`) to populate this tab.")
+        st.info("Run `scripts/run_pipeline.py` to populate this tab.")
     else:
         r = recovery
         p = results["primary"]
@@ -769,14 +764,16 @@ elif active_section == "Recovery check":
 
         st.markdown(
             '<div class="section-caption">Ground truth exists only because this '
-            "experiment is simulated: the true injected effect is checked "
-            "against the preregistered analysis's confidence interval, after "
+            "experiment is simulated. The analysis interval is checked against the "
+            "effect actually realized in the simulated population, which is what a "
+            "confidence interval from one randomized run targets. The injected "
+            "parameter is shown as well. The check runs after "
             "analyze() has already returned a result computed without ever "
-            "seeing this file.</div>",
+            "seeing the truth file.</div>",
             unsafe_allow_html=True,
         )
 
-        def recovery_chart(title, ci_low, ci_high, point_estimate, true_value, unit_fmt, recovered, x_suffix=""):
+        def recovery_chart(title, ci_low, ci_high, point_estimate, realized, injected, unit_fmt, recovered):
             color = SUCCESS if recovered else DANGER
             fig = go.Figure()
             fig.add_trace(go.Scatter(
@@ -786,22 +783,29 @@ elif active_section == "Recovery check":
                 line=dict(color=color, width=2.5),
                 marker=dict(size=[9, 13, 9], color=color, line=dict(color=INK, width=1.5)),
                 name="Point estimate, 95% CI",
-                hovertemplate="%{x" + x_suffix + "}<extra></extra>",
+                hovertemplate="%{x}<extra></extra>",
             ))
             fig.add_vline(
-                x=true_value,
+                x=realized,
                 line_dash="dash", line_width=1.5, line_color=INK,
-                annotation_text=f"True value {unit_fmt(true_value)}",
+                annotation_text=f"Realized {unit_fmt(realized)}",
                 annotation_font=dict(color=INK, family=CHART_FONT, size=11),
                 annotation_position="top",
+            )
+            fig.add_vline(
+                x=injected,
+                line_dash="dot", line_width=1.5, line_color=INK_SOFT,
+                annotation_text=f"Injected {unit_fmt(injected)}",
+                annotation_font=dict(color=INK_SOFT, family=CHART_FONT, size=11),
+                annotation_position="bottom",
             )
             fig.update_layout(
                 template="plotly_white",
                 title=dict(text=title, font=dict(family=CHART_FONT, size=13, color=INK), x=0.5, xanchor="center"),
                 plot_bgcolor=PANEL, paper_bgcolor="rgba(0,0,0,0)",
                 font=dict(family=CHART_FONT, color=INK, size=12),
-                height=190,
-                margin=dict(t=48, b=30, l=90, r=30),
+                height=210,
+                margin=dict(t=48, b=40, l=90, r=30),
                 yaxis=dict(visible=True, showgrid=False, showline=False),
                 xaxis=dict(gridcolor=GRID, zeroline=False, showline=True, linewidth=1, linecolor=RULE),
                 showlegend=False,
@@ -810,43 +814,46 @@ elif active_section == "Recovery check":
 
         st.plotly_chart(
             recovery_chart(
-                "AOV lift, R$ - point estimate with 95% CI vs. true injected value",
-                r["primary_ci"][0], r["primary_ci"][1], p["point_estimate_lift"], r["true_aov_lift"],
+                "AOV lift, R$: point estimate with 95% CI vs. realized and injected values",
+                r["primary_ci"][0], r["primary_ci"][1], p["point_estimate_lift"],
+                r["realized_aov_lift"], r["injected_aov_lift"],
                 lambda v: f"R$ {v:.2f}", r["primary_recovered"],
             ),
-            width='stretch',
+            width="stretch",
         )
         st.plotly_chart(
             recovery_chart(
-                "Complaint-rate diff, pp - point estimate with 95% CI vs. true injected value",
+                "Complaint-rate diff, pp: point estimate with 95% CI vs. realized and injected values",
                 r["guardrail_ci"][0] * 100, r["guardrail_ci"][1] * 100,
-                g["point_estimate_diff"] * 100, r["true_complaint_lift"] * 100,
+                g["point_estimate_diff"] * 100,
+                r["realized_complaint_diff"] * 100, r["injected_complaint_lift"] * 100,
                 lambda v: f"{v:.2f}pp", r["guardrail_recovered"],
             ),
-            width='stretch',
+            width="stretch",
         )
 
+        truth_side = "below" if r["realized_complaint_diff_below_margin"] else "at or above"
         stat_row([
             {
                 "label": "AOV lift recovered",
                 "value": "Yes" if r["primary_recovered"] else "No",
                 "tone": "good" if r["primary_recovered"] else "bad",
-                "note": f"true R$ {r['true_aov_lift']:.2f} · CI [R$ {r['primary_ci'][0]:.2f}, R$ {r['primary_ci'][1]:.2f}]",
+                "note": f"realized R$ {r['realized_aov_lift']:.2f} (injected R$ {r['injected_aov_lift']:.2f}) · CI [R$ {r['primary_ci'][0]:.2f}, R$ {r['primary_ci'][1]:.2f}]",
             },
             {
                 "label": "Complaint-rate diff recovered",
                 "value": "Yes" if r["guardrail_recovered"] else "No",
                 "tone": "good" if r["guardrail_recovered"] else "bad",
-                "note": f"true {r['true_complaint_lift']*100:.2f}pp · CI [{r['guardrail_ci'][0]*100:.2f}pp, {r['guardrail_ci'][1]*100:.2f}pp]",
+                "note": f"realized {r['realized_complaint_diff']*100:.2f}pp (injected {r['injected_complaint_lift']*100:.2f}pp), {truth_side} the margin · CI [{r['guardrail_ci'][0]*100:.2f}pp, {r['guardrail_ci'][1]*100:.2f}pp]",
             },
         ], compact=True)
 
         st.markdown(
             '<div class="section-caption">A 95% confidence interval is expected '
-            "to miss the true value roughly one seeded run in twenty, even when "
+            "to miss the realized value roughly one seeded run in twenty, even when "
             "the method is correct. Recovery is a smoke test that the pipeline "
             "isn't obviously broken, not proof the method generalizes to every "
-            "real, unknown effect size - see README limitations. "
+            "real, unknown effect size. See README limitations. "
             "<code>test_recovery_check_catches_bugs.py</code> separately "
             "confirms this check can detect an actual bug when one is "
             "injected.</div>",
@@ -855,15 +862,22 @@ elif active_section == "Recovery check":
 
 elif active_section == "Memo":
     if not has_results:
-        st.info("Run `python3 -m experiment.reporting` (or `scripts/run_pipeline.py`) to populate this tab.")
+        st.info("Run `scripts/run_pipeline.py` to populate this tab.")
     else:
         p = results["primary"]
         g = results["guardrail"]
-        verdict, reasoning = recommendation(p, g)
-        breach = g["guardrail_breached"]
+        content = memo_content(results)
+        verdict = content["verdict"]
         significant = p["significant_at_alpha_0.05"]
         n_total = p["n_treatment_sellers"] + p["n_control_sellers"]
         verdict_tone = "good" if verdict == "GO" else "bad"
+        if significant and p["point_estimate_lift"] > 0:
+            aov_tone = "good"
+        elif significant:
+            aov_tone = "bad"
+        else:
+            aov_tone = ""
+        complaint_tone = GUARDRAIL_STYLE[g["guardrail_status"]][0]
 
         memo_html = "".join([
             '<div class="memo-sheet">',
@@ -876,35 +890,37 @@ elif active_section == "Memo":
             '<span class="memo-v">Free shipping rollout decision</span></div>',
             '</div>',
             f'<div class="hero-top" style="margin-bottom:1.2rem;">{badge(verdict, verdict_tone)}</div>',
-            f'<p class="memo-body">{reasoning}</p>',
+            f'<p class="memo-body">{content["reasoning"]}</p>',
             '<div class="memo-section-title">What we tested</div>',
             '<ul class="memo-list">',
             f'<li>Randomly split {n_total:,} sellers into two equal groups: '
             'standard shipping vs. free shipping</li>',
             '<li>Measured whether free shipping changed average order value</li>',
-            '<li>Separately checked whether it made delivery complaints worse</li>',
+            '<li>Separately checked whether it made complaints (reviews of 2 stars or below) worse</li>',
             '</ul>',
             '<div class="memo-section-title">Results at a glance</div>',
             '<div class="memo-stat-grid">',
             '<div class="memo-stat-cell">',
             '<div class="memo-stat-label">Order value, treatment</div>',
-            f'<div class="memo-stat-value {"good" if significant else ""}">'
+            f'<div class="memo-stat-value {aov_tone}">'
             f'R$ {p["treatment_mean_aov"]:.2f}</div>',
             f'<div class="memo-stat-note">control R$ {p["control_mean_aov"]:.2f} · '
             f'lift R$ {p["point_estimate_lift"]:.2f} · '
-            f'95% CI [R$ {p["ci_95_low"]:.2f}, R$ {p["ci_95_high"]:.2f}]</div>',
+            f'95% CI [R$ {p["ci_95_low"]:.2f}, R$ {p["ci_95_high"]:.2f}]. '
+            f'{content["minimum_sentence"]}</div>',
             '</div>',
             '<div class="memo-stat-cell">',
             '<div class="memo-stat-label">Complaint rate, treatment</div>',
-            f'<div class="memo-stat-value {"bad" if breach else "good"}">'
-            f'{g["treatment_complaint_rate"]*100:.1f}%</div>',
-            f'<div class="memo-stat-note">control {g["control_complaint_rate"]*100:.1f}% · '
-            f'diff {g["point_estimate_diff"]*100:+.1f}pp · '
-            f'margin {g["non_inferiority_margin"]*100:.1f}pp</div>',
+            f'<div class="memo-stat-value {complaint_tone}">'
+            f'{g["treatment_complaint_rate"]*100:.2f}%</div>',
+            f'<div class="memo-stat-note">control {g["control_complaint_rate"]*100:.2f}% · '
+            f'diff {g["point_estimate_diff"]*100:+.2f}pp · '
+            f'margin {g["non_inferiority_margin"]*100:.2f}pp</div>',
             '</div>',
             '</div>',
+            f'<p class="memo-body">{content["guardrail_sentence"]}</p>',
             '<div class="memo-section-title">What happens next</div>',
-            f'<p class="memo-body" style="margin-bottom:0;">{next_step(p, g, verdict)}</p>',
+            f'<p class="memo-body" style="margin-bottom:0;">{content["next_step"]}</p>',
             '</div>',
         ])
         st.markdown(memo_html, unsafe_allow_html=True)
