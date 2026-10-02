@@ -1,21 +1,3 @@
-"""
-Step 2: Power analysis and minimum detectable effect.
-
-Reads ONLY data/calibration/calibration_params.json (real-data-derived
-baseline mean/variance/rate). It must never read simulated data, because
-that data does not exist yet at this point in the project. Output is
-written to results/power_analysis.json, and docs/PREREGISTRATION.md quotes
-these numbers directly.
-
-Unit of analysis for both tests is the seller, matching the unit of
-randomization (see docs/PREREGISTRATION.md for the SUTVA argument). The
-primary metric test is a Welch's t-test on each seller's mean AOV; the
-guardrail is planned as a proportions test, so its required N is
-computed in orders and then converted into an equivalent seller count
-using the observed orders-per-seller rate, so the two constraints can be
-compared on the same unit.
-"""
-
 import json
 import math
 from pathlib import Path
@@ -23,30 +5,22 @@ from pathlib import Path
 from statsmodels.stats.power import NormalIndPower, TTestIndPower
 from statsmodels.stats.proportion import proportion_effectsize
 
+from design.preregistered import (
+    ALPHA,
+    AOV_MDE_ABSOLUTE,
+    GUARDRAIL_MARGIN_ABSOLUTE,
+    N_PER_ARM,
+    POWER_TARGET,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
 CALIB_PATH = DATA / "calibration" / "calibration_params.json"
 OUT_PATH = ROOT / "results" / "power_analysis.json"
 
-ALPHA = 0.05
-POWER_TARGET = 0.80
 
-# --- MDE choices, justified in prose below and quoted verbatim in docs/PREREGISTRATION.md ---
-
-# Primary metric MDE: the mean freight value absorbed per order in the calibration
-# data is ~R$23. A shipping-policy change that does not lift average order value by
-# at least that much cannot be covering its own direct cost, before even accounting
-# for margin. We set the MDE a little above the direct-cost break-even point rather
-# than exactly at it, so the trial isn't powered to detect a lift that would be a
-# wash on paper. Anything smaller than this is not worth acting on regardless of
-# statistical significance; anything at or above it is.
-AOV_MDE_ABSOLUTE = 25.0  # BRL, absolute lift in mean per-seller AOV
-
-# Guardrail MDE: the maximum tolerable absolute increase in the delivery-complaint
-# rate. Two percentage points on a ~13% baseline is roughly a 15% relative jump,
-# picked as the threshold past which the seller-satisfaction cost plausibly outweighs
-# the AOV gain, independent of what the AOV result says.
-GUARDRAIL_MARGIN_ABSOLUTE = 0.02
+class DesignDriftError(RuntimeError):
+    pass
 
 
 def primary_power(calibration):
@@ -55,13 +29,18 @@ def primary_power(calibration):
 
     analysis = TTestIndPower()
     n_per_arm = analysis.solve_power(
-        effect_size=cohens_d, alpha=ALPHA, power=POWER_TARGET, ratio=1.0,
+        effect_size=cohens_d,
+        alpha=ALPHA,
+        power=POWER_TARGET,
+        ratio=1.0,
         alternative="two-sided",
     )
     n_per_arm = math.ceil(n_per_arm)
 
     return {
-        "test": "Welch's t-test (two independent means, unequal variance)",
+        "test": "Two-sample t-test power (TTestIndPower, equal n, equal variance "
+        "planning assumption; with equal n this closely approximates Welch's "
+        "t-test, which is the test that runs)",
         "unit_of_analysis": "seller (mean AOV across that seller's orders)",
         "mde_absolute_brl": AOV_MDE_ABSOLUTE,
         "baseline_seller_level_aov_std": seller_aov_std,
@@ -79,7 +58,10 @@ def guardrail_power(calibration):
 
     analysis = NormalIndPower()
     n_per_arm_orders = analysis.solve_power(
-        effect_size=h, alpha=ALPHA, power=POWER_TARGET, ratio=1.0,
+        effect_size=h,
+        alpha=ALPHA,
+        power=POWER_TARGET,
+        ratio=1.0,
         alternative="two-sided",
     )
     n_per_arm_orders = math.ceil(n_per_arm_orders)
@@ -90,12 +72,15 @@ def guardrail_power(calibration):
     return {
         "test_used_for_power_sizing": "two-proportion z-test (NormalIndPower), pooled "
         "order-level counts, sized to detect a margin-sized difference against zero. "
-        "The planned analysis test is a one-sided, margin-shifted, seller-clustered "
-        "non-inferiority test (see docs/PREREGISTRATION.md section 8), so this is an "
-        "order-level planning approximation, not a power calculation for the test that "
-        "runs: it ignores within-seller correlation and can understate the sellers that "
-        "test needs (see the section 4 amendment). A seller-level power calculation "
-        "would need per-seller complaint-rate variance, which calibration.py does not "
+        "The planned analysis test is a one-sided, margin-shifted non-inferiority "
+        "test on the order-weighted complaint rate with seller-clustered standard "
+        "errors (see docs/PREREGISTRATION.md section 8), so this is an order-level "
+        "planning approximation, not a power calculation for the test that runs: it "
+        "ignores within-seller correlation and can understate the sellers that test "
+        "needs (see the section 4 amendment). The conversion to sellers uses the mean "
+        "orders per seller, which the heavily skewed real distribution makes "
+        "unrepresentative. A seller-clustered power calculation would need "
+        "per-seller complaint-rate variance, which calibration.py does not "
         "currently compute.",
         "unit_for_sizing": "order (pooled within arm)",
         "baseline_complaint_rate": p1,
@@ -111,7 +96,7 @@ def guardrail_power(calibration):
 
 
 def main():
-    calibration = json.load(open(CALIB_PATH))
+    calibration = json.loads(CALIB_PATH.read_text(encoding="utf-8"))
 
     primary = primary_power(calibration)
     guardrail = guardrail_power(calibration)
@@ -122,9 +107,19 @@ def main():
     )
     binding_constraint = (
         "primary (AOV)"
-        if primary["required_n_per_arm_sellers"] >= guardrail["required_n_per_arm_sellers_equivalent"]
+        if primary["required_n_per_arm_sellers"]
+        >= guardrail["required_n_per_arm_sellers_equivalent"]
         else "guardrail (complaint rate)"
     )
+
+    if binding_n != N_PER_ARM:
+        raise DesignDriftError(
+            f"Computed required N per arm is {binding_n}, but the preregistered "
+            f"N per arm is {N_PER_ARM} (src/design/preregistered.py and "
+            "docs/PREREGISTRATION.md). The calibration inputs have changed since "
+            "the design was locked. Nothing was written. Amend the preregistration "
+            "explicitly before changing the frozen constants."
+        )
 
     real_sellers_in_scope = calibration["seller_level"]["n_real_sellers_in_scope"]
 
@@ -150,13 +145,15 @@ def main():
     }
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUT_PATH, "w") as f:
+    with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
 
     print(f"Wrote {OUT_PATH}")
     print(f"Primary required N/arm (sellers): {primary['required_n_per_arm_sellers']}")
-    print(f"Guardrail required N/arm (sellers-equivalent): "
-          f"{guardrail['required_n_per_arm_sellers_equivalent']}")
+    print(
+        f"Guardrail required N/arm (sellers-equivalent): "
+        f"{guardrail['required_n_per_arm_sellers_equivalent']}"
+    )
     print(f"Binding constraint: {binding_constraint}")
     print(f"Required N per arm: {binding_n} (total {binding_n * 2})")
     print(f"Real sellers in scope for comparison: {real_sellers_in_scope}")

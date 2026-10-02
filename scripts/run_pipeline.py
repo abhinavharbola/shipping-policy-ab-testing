@@ -1,23 +1,3 @@
-"""
-Runs the full experiment pipeline in order:
-    calibrate -> power analysis -> simulate -> randomize -> analyze -> report
-
-docs/PREREGISTRATION.md is intentionally not touched by this script; it is a
-locked document, written and committed before any of these steps existed,
-and stays that way.
-
-Usage: python3 scripts/run_pipeline.py [--recalibrate]
-
-No package install needed (there is no pyproject.toml): it puts src/
-on sys.path itself, and runs correctly from any working directory.
-
-Calibration is skipped by default when data/calibration/calibration_params.json
-already exists, since that file is committed to the repo and the README
-states the raw Olist CSVs are not required to run the pipeline. Pass
---recalibrate to force recalibration from data/raw/ (requires the Olist
-CSVs to be present there).
-"""
-
 import sys
 from pathlib import Path
 

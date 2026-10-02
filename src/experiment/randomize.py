@@ -1,20 +1,3 @@
-"""
-Step 5: randomize.
-
-Performs the simple random assignment specified in docs/PREREGISTRATION.md
-section 5 (not stratified, 1:1 by seller). Reveals exactly one potential
-outcome per seller and writes ONLY that revealed value; the counterfactual
-columns from simulate.py are dropped here and never written to
-the output analyze.py reads. This is what makes "the analysis code must
-not be able to see or influence the values already committed" true by
-construction, not by convention: the file analyze.py loads physically
-does not contain the other arm's outcome or the true effect size.
-
-Seed is an implementation detail (see docs/PREREGISTRATION.md section 5), not
-a design decision: it is fixed here for reproducibility of this specific
-run, not chosen to produce a favorable split.
-"""
-
 from pathlib import Path
 
 import numpy as np
@@ -24,20 +7,12 @@ DATA = Path(__file__).resolve().parents[2] / "data"
 IN_POPULATION = DATA / "simulated" / "population_potential_outcomes.csv"
 OUT_ASSIGNED = DATA / "simulated" / "assigned_experiment.csv"
 
-RANDOMIZATION_SEED = 71  # implementation detail; not tuned
+RANDOMIZATION_SEED = 71
+
+REVEALED_COLUMNS = {"seller_id", "category", "arm", "aov", "complaint"}
 
 
 def randomize(population, seed=RANDOMIZATION_SEED):
-    """
-    Pure assignment logic, no file I/O, so it can be unit-tested directly
-    against the real code path instead of a hand-copied reimplementation.
-
-    1:1 assignment requires an even seller count. This holds today because
-    simulate.py always sets n_sellers = n_per_arm * 2, but that guarantee
-    lives in simulate.py, not here: without this check, an odd-sized
-    population would silently give control one extra seller instead of
-    failing loudly.
-    """
     seller_ids = population["seller_id"].unique()
 
     if len(seller_ids) % 2 != 0:
@@ -76,8 +51,11 @@ def randomize(population, seed=RANDOMIZATION_SEED):
         "complaint": revealed_complaint,
     })
 
-    # Sanity: confirm no counterfactual column survived into the revealed frame.
-    assert set(revealed.columns) == {"seller_id", "category", "arm", "aov", "complaint"}
+    if set(revealed.columns) != REVEALED_COLUMNS:
+        raise RuntimeError(
+            f"Revealed frame has unexpected columns {sorted(revealed.columns)}; "
+            "a counterfactual column may have leaked."
+        )
 
     return revealed
 

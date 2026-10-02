@@ -1,17 +1,3 @@
-"""
-Step 0.5: Calibrate simulation parameters from real Olist data.
-
-This script computes descriptive statistics only: category-level AOV mean
-and variance, seller-level AOV variance, baseline complaint rate, and the
-distribution of orders per seller. Nothing here is a hypothesis test and
-nothing here touches a treatment/control split, because at this point in
-the project no such split exists yet. Output is a single JSON file that
-power_analysis.py reads to size the experiment, and docs/PREREGISTRATION.md
-quotes directly.
-
-Run this before writing docs/PREREGISTRATION.md. Do not run it after.
-"""
-
 import json
 from pathlib import Path
 
@@ -22,10 +8,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
 RAW = DATA / "raw"
 OUT = DATA / "calibration"
-OUT.mkdir(parents=True, exist_ok=True)
 
-COMPLAINT_THRESHOLD = 2  # review_score <= 2 counts as a delivery complaint
-MIN_ORDERS_PER_CATEGORY = 200  # drop long-tail categories too thin to calibrate on
+COMPLAINT_THRESHOLD = 2
+MIN_ORDERS_PER_CATEGORY = 200
 
 
 def load():
@@ -41,6 +26,7 @@ def build_order_table(orders, items, reviews, products, translation, stats_out=N
     orders = orders[orders["order_status"] == "delivered"].copy()
 
     order_value = items.groupby("order_id")["price"].sum().rename("aov")
+    order_freight = items.groupby("order_id")["freight_value"].sum().rename("freight")
 
     products = products.merge(translation, on="product_category_name", how="left")
     item_category = items.merge(
@@ -54,15 +40,6 @@ def build_order_table(orders, items, reviews, products, translation, stats_out=N
         .rename("category")
     )
 
-    # Olist orders can legitimately contain items from more than one seller.
-    # Attributing an order's seller from a single item (rather than, e.g.,
-    # the seller with the largest share of the order's value) is a real
-    # simplification on real, non-simulated calibration data: multi-seller
-    # orders get silently folded into whichever seller happened to log the
-    # lowest order_item_id, which slightly understates each such seller's
-    # true per-seller AOV variance. It's a small effect at this dataset's
-    # scale, but it is a genuine distortion, not just an implementation
-    # detail, so it's called out here rather than left implicit.
     order_seller_counts = items.groupby("order_id")["seller_id"].nunique()
     n_multi_seller_orders = int((order_seller_counts > 1).sum())
     if stats_out is not None:
@@ -85,14 +62,21 @@ def build_order_table(orders, items, reviews, products, translation, stats_out=N
         "review_score"
     )
 
-    table = (
+    joined = (
         orders.set_index("order_id")
         .join(order_value, how="inner")
+        .join(order_freight, how="left")
         .join(primary_category, how="left")
         .join(seller_of_order, how="left")
         .join(review_score, how="left")
-        .dropna(subset=["aov", "category", "seller_id"])
     )
+    table = joined.dropna(subset=["aov", "category", "seller_id"])
+    if stats_out is not None:
+        stats_out["n_orders_dropped_missing_category_or_seller"] = int(
+            len(joined) - len(table)
+        )
+
+    table = table.copy()
     table["complaint"] = (table["review_score"] <= COMPLAINT_THRESHOLD).astype(float)
     table.loc[table["review_score"].isna(), "complaint"] = np.nan
     return table
@@ -120,6 +104,7 @@ def calibrate(table):
 
     overall_aov_mean = float(sub["aov"].mean())
     overall_aov_std = float(sub["aov"].std(ddof=1))
+    overall_freight_mean = float(sub["freight"].mean())
     overall_reviewed = sub.dropna(subset=["complaint"])
     overall_complaint_rate = float(overall_reviewed["complaint"].mean())
 
@@ -127,15 +112,6 @@ def calibrate(table):
     orders_per_seller = sub.groupby("seller_id").size()
     seller_level_aov_std = float(seller_means.std(ddof=1))
 
-    # Seller-level category weights, distinct from the order-level weights
-    # above. simulate.py draws one category per SIMULATED SELLER, which
-    # needs a seller-level distribution: how many real sellers are
-    # primarily in each category. Using the order-level weights for that
-    # (the original approach) overweights categories where individual
-    # sellers place many orders each, since a seller with 500 orders in
-    # one category counts 500 times toward that category's share instead
-    # of once. Each seller's category here is the mode of their own
-    # orders' categories (restricted to the categories kept above).
     seller_primary_category = sub.groupby("seller_id")["category"].agg(
         lambda s: s.mode().iloc[0]
     )
@@ -145,7 +121,7 @@ def calibrate(table):
     seller_weights = seller_category_counts.astype(float)
     seller_weights = seller_weights / seller_weights.sum()
 
-    calibration = {
+    return {
         "source": "Olist Brazilian E-Commerce (olist_orders/items/reviews/products, "
         "delivered orders only). Used for descriptive calibration only; "
         "no hypothesis test is run on this data.",
@@ -165,6 +141,7 @@ def calibrate(table):
         "overall": {
             "aov_mean": round(overall_aov_mean, 2),
             "aov_std": round(overall_aov_std, 2),
+            "freight_mean_per_order": round(overall_freight_mean, 2),
             "complaint_rate": round(overall_complaint_rate, 4),
         },
         "seller_level": {
@@ -176,7 +153,6 @@ def calibrate(table):
             "orders_per_seller_distribution": sorted(orders_per_seller.tolist()),
         },
     }
-    return calibration
 
 
 def main():
@@ -188,24 +164,36 @@ def main():
     calibration = calibrate(table)
     calibration["data_quality_notes"] = data_quality_notes
 
+    OUT.mkdir(parents=True, exist_ok=True)
     out_path = OUT / "calibration_params.json"
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(calibration, f, indent=2)
 
     print(f"Wrote {out_path}")
     print(f"Categories kept: {calibration['n_categories_kept']}")
-    print(f"Overall AOV mean/std: {calibration['overall']['aov_mean']} / "
-          f"{calibration['overall']['aov_std']}")
+    print(
+        f"Overall AOV mean/std: {calibration['overall']['aov_mean']} / "
+        f"{calibration['overall']['aov_std']}"
+    )
+    print(f"Mean freight per order: {calibration['overall']['freight_mean_per_order']}")
     print(f"Overall complaint rate: {calibration['overall']['complaint_rate']}")
     print(
-        f"Multi-seller orders (seller attributed to lowest order_item_id): "
-        f"{data_quality_notes['n_multi_seller_orders']} "
+        f"Multi-seller orders (whole order credited to the seller of the lowest "
+        f"order_item_id): {data_quality_notes['n_multi_seller_orders']} "
         f"({data_quality_notes['n_multi_seller_orders_pct']}%)"
     )
-    print(f"Seller-level AOV std (between-seller): "
-          f"{calibration['seller_level']['seller_level_aov_std']}")
-    print(f"Median orders per seller: "
-          f"{calibration['seller_level']['orders_per_seller_median']}")
+    print(
+        f"Orders dropped for missing category or seller: "
+        f"{data_quality_notes['n_orders_dropped_missing_category_or_seller']}"
+    )
+    print(
+        f"Seller-level AOV std (between-seller): "
+        f"{calibration['seller_level']['seller_level_aov_std']}"
+    )
+    print(
+        f"Median orders per seller: "
+        f"{calibration['seller_level']['orders_per_seller_median']}"
+    )
 
 
 if __name__ == "__main__":
