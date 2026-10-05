@@ -9,5 +9,5 @@
   "seller_aov_std_target": 315.58,
   "seller_aov_std_achieved": 315.58,
   "seller_dispersion_sigma": 1.1494,
-  "note": "Ground truth for the recovery check in analyze.py. The true_* fields are the injected parameters. The realized_* fields are the finite-population effects actually present in this simulated population, which is what a confidence interval from one randomized run targets. Kept separate from randomize.py's output; randomize.py and analyze.py never read this file or the *_control/*_treatment potential-outcome columns together."
+  "note": "Ground truth for the recovery check in analyze.py. The true_* fields are the injected parameters. The realized_* fields are the finite-population effects actually present in this simulated population, which is what a confidence interval from one randomized run targets. Kept separate from randomize.py's output. randomize.py never reads this file. analyze.py reads it only in check_ground_truth_recovery, after the analysis has returned, and never alongside the *_control/*_treatment potential-outcome columns."
 }

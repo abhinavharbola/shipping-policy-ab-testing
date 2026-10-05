@@ -157,8 +157,9 @@ def simulate_population(calibration, n_sellers, seed=SIM_SEED):
         "are the injected parameters. The realized_* fields are the finite-population "
         "effects actually present in this simulated population, which is what a "
         "confidence interval from one randomized run targets. Kept separate from "
-        "randomize.py's output; randomize.py and analyze.py never read this file or "
-        "the *_control/*_treatment potential-outcome columns together.",
+        "randomize.py's output. randomize.py never reads this file. analyze.py reads "
+        "it only in check_ground_truth_recovery, after the analysis has returned, and "
+        "never alongside the *_control/*_treatment potential-outcome columns.",
     }
     return population, true_effects
 
